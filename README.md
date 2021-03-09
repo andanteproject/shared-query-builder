@@ -2,7 +2,7 @@
 
 # Shared Query Builder
 
-#### Doctrine 2 query builder decorator - [AndanteProject](https://github.com/andanteproject)
+#### Doctrine 2 [Query Builder](https://www.doctrine-project.org/projects/doctrine-orm/en/2.8/reference/query-builder.html) decorator - [AndanteProject](https://github.com/andanteproject)
 
 [![Latest Version](https://img.shields.io/github/release/andanteproject/shared-query-builder.svg)](https://github.com/andanteproject/shared-query-builder/releases)
 ![Github actions](https://github.com/andanteproject/shared-query-builder/actions/workflows/workflow.yml/badge.svg?branch=main)
@@ -47,7 +47,7 @@ $ composer require andanteproject/shared-query-builder
 
 After creating
 your [query builder](https://www.doctrine-project.org/projects/doctrine-orm/en/2.8/reference/query-builder.html), wrap
-it inside out SharedQueryBuilder.
+it inside our `SharedQueryBuilder`.
 
 ```php
 use Andante\Doctrine\ORM\SharedQueryBuilder;
@@ -83,7 +83,7 @@ $qb = $sqb->unwrap();
 
 ### Entity methods
 
-You can ask the SharedQueryBuilder if it has and entity in the `from` statement or some `join` statements.
+You can ask the `SharedQueryBuilder` if it has and entity in the `from` statement or some `join` statements.
 
 ```php
 if($sqb->hasEntity(User::class)) // bool returned 
@@ -99,7 +99,7 @@ statement or a `join` statement).
 $userAlias = $sqb->getAliasForEntity(User::class); // string 'u' returned 
 ```
 
-You can use `withAlias` method to smoothly add a condition for that entity:
+You can use `withAlias` method to smoothly add a condition for that entity property:
 
 ```php
 if($sqb->hasEntity(User::class)) // bool returned 
@@ -107,7 +107,7 @@ if($sqb->hasEntity(User::class)) // bool returned
     $sqb
         ->andWhere(
             $sqb->expr()->eq(
-                $sqb->withAlias(User::class, 'email'), 
+                $sqb->withAlias(User::class, 'email'), // string 'u.email'
                 ':email_value'
             )
         )
@@ -138,10 +138,12 @@ All query builder `join` methods can be used as usually, but you can also use th
 $sqb->join(/* args */);
 $sqb->innerJoin(/* args */);
 $sqb->leftJoin(/* args */);
+
 // Lazy join methods
 $sqb->lazyJoin(/* args */);
 $sqb->lazyInnerJoin(/* args */);
 $sqb->lazyLeftJoin(/* args */);
+
 // They works with all the ways you know you can perform joins in Doctrine
 // A: $sqb->lazyJoin('u.address', 'a') 
 // or B: $sqb->lazyJoin('Address::class', 'a', Expr\Join::WITH, $sqb->expr()->eq('u.address','a')) 
@@ -150,13 +152,14 @@ $sqb->lazyLeftJoin(/* args */);
 By doing this, you are defining a `join` statement **without actually adding it** to your DQL query. It is going to be
 added to your DQL query only when you add **another condition/dql part** which refers to it. Automagically ✨.
 
-Based on how much confused you are right now, you can check for [you do should you need this](#why-do-i-need-this)
-reasons or [some examples](#examples) to achieve your "OMG" moment.
+Based on how much confused you are right now, you can check for [why you should need this](#why-do-i-need-this) or [some examples](#examples) to achieve your "OMG" revelation moment.
 
 ## Examples
 
 Let's suppose we need to list `User` entities but we also have an **optional filter** to search an user by it's
-address `Building` name. There is no need to perform any join until we decide to use that filter. We can use **Laxy
+address `Building` name. 
+
+There is no need to perform any join until we decide to use that filter. We can use **Laxy
 Join** to achieve this.
 
 ```php
@@ -195,7 +198,7 @@ $users = $sqb->getQuery()->getResults();
 //       AND b.name = 'Building A'
 ```
 
-You are probably thinking: **why don't we achieve the same result like this**? (keep in mind that avoid to perform
+You are probably thinking: **why don't we achieve the same result with the following, more common, way**? (keep in mind that avoid to perform
 unecessary joins is still a requirement)
 
 ```php
@@ -207,6 +210,7 @@ $qb
         $qb->expr()->eq('u.verifiedEmail', ':verified_email')
     )
     ->setParameter('verified_email', true);
+    
 if(!empty($buildingNameFilter)){
     $qb
         ->lazyJoin('u.address', 'a')
@@ -217,6 +221,7 @@ if(!empty($buildingNameFilter)){
         ->setParameter('building_name_value', $buildingNameFilter)
     ;
 }
+
 $users = $qb->getQuery()->getResults(); // Same result as example shown before
 // But this has some down sides further explained
 ```
@@ -225,9 +230,9 @@ The code above is perfectly fine if you build this whole query in the **same con
 
 - 👍🏻 You are *aware* of the whole query building process;
 - 👍🏻 You are *aware* of which entities are involved;
-- 👍🏻 You are *aware* of which alias are defined for each entity;
+- 👍🏻 You are *aware* of which alias are defined for each entity.
 
-The problems are:
+But you have problems:
 
 - 👎🏻 You are mixing query structure definition with optional filtering criteria.
 - 👎🏻 Code is is quickly going to be an unreadable mess.
@@ -291,9 +296,9 @@ class BuildingNameFilter implements FilterInterface
 
 **We are committing some multiple sins here! 💀 The context is changed.**
 
-- 👎🏻 You are *not aware* of the whole query building process. Is the given QueryBuilder even a query on Users?;
+- 👎🏻 You are *not aware* of the whole query building process. Is the given QueryBuilder even a query on User entity?;
 - 👎🏻 You are *not aware* of which entities are involved. Which entities are already been joined?;
-- 👎🏻 You are *not aware* of which alias are defined for each entity. No way we are calling `u.address` by convention
+- 👎🏻 You are *not aware* of which aliases are defined for each entity. No way we are calling `u.address` by convention
   🤨;
 - 👎🏻 Our job in this context is just to apply some filter. We *can* change the query by adding some join statements
   but we *should avoid* that. What if another filter also need to perform those joins? Devastating. 😵
@@ -367,11 +372,13 @@ class BuildingNameFilter implements FilterInterface
 ```
 
 - 👍🏻 No extra join statements executed when there is no need for them;
-- 👍🏻 We can discover if the Query Builder is handling Building entities too and then apply our filtering logic;
-- 👍🏻 We are not guessing for entity aliases;
-- 👍🏻 Our filter class is only responsible of filtering;
+- 👍🏻 We can discover if the Query Builder is handling an Entity and then apply our business logic;
+- 👍🏻 We are not guessing entity aliases;
+- 👍🏻 Our filter class is only responsible for filtering;
 - 👍🏻 There can be multiple filter class handling different criteria on the same entity without having duplicated join
   statements;
-- The world is an happier place 💁.
+- The world is a happier place 💁.
+
+Give us a ⭐️ if your world is now a happier place too! 💃🏻
 
 Built with love ❤️ by [AndanteProject](https://github.com/andanteproject) team.
