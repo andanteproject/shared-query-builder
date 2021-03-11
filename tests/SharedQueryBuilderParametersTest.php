@@ -1,0 +1,213 @@
+<?php
+
+declare(strict_types=1);
+
+
+namespace Andante\Doctrine\ORM\Tests;
+
+use Andante\Doctrine\ORM\Exception\CannotOverrideImmutableParameterException;
+use Andante\Doctrine\ORM\Exception\CannotOverrideParametersException;
+use Andante\Doctrine\ORM\Exception\InvalidArgumentException;
+use Andante\Doctrine\ORM\SharedQueryBuilder;
+use Doctrine\Common\Collections\Collection;
+use Doctrine\ORM\EntityManagerInterface;
+use Doctrine\ORM\Query;
+use Doctrine\ORM\QueryBuilder;
+use PHPStan\Testing\TestCase;
+
+class SharedQueryBuilderParametersTest extends TestCase
+{
+    public function testCannotOverrideImmutableParameter(): void
+    {
+        $sqb = $this->createSqb();
+        $sqb->setImmutableParameter('parameter1', 1);
+        self::assertParametersEquals(['parameter1' => 1], $sqb->getParameters());
+        $this->expectException(CannotOverrideImmutableParameterException::class);
+        $sqb->setImmutableParameter('parameter1', 1);
+    }
+
+    public function testCanOverrideNotImmutableParameter(): void
+    {
+        $sqb = $this->createSqb();
+        $sqb->setParameter('parameter1', 1);
+        self::assertParametersEquals(['parameter1' => 1], $sqb->getParameters());
+        $sqb->setImmutableParameter('parameter1', 2);
+        self::assertParametersEquals(['parameter1' => 2], $sqb->getParameters());
+    }
+
+    public function testCanOverrideParametersWhenNoImmutableParametersDefined(): void
+    {
+        $sqb = $this->createSqb();
+        $sqb->setParameter('parameter1', 1);
+        $sqb->setParameter('parameter2', 2);
+        $sqb->setParameters([
+            'parameter3' => 3,
+            'parameter4' => 4,
+        ]);
+        self::assertParametersEquals([
+            'parameter3' => 3,
+            'parameter4' => 4,
+        ], $sqb->getParameters());
+    }
+
+    public function testCannotOverrideParametersWithParametersWhenImmutableParametersDefined(): void
+    {
+        $sqb = $this->createSqb();
+        $sqb->setParameter('parameter1', 1);
+        $sqb->setImmutableParameter('parameter2', 2);
+        $this->expectException(CannotOverrideParametersException::class);
+        $sqb->setParameters([
+            'parameter3' => 3,
+            'parameter4' => 4,
+        ]);
+    }
+
+    public function testCannotOverrideParametersWithImmutableParametersWhenImmutableParametersDefined(): void
+    {
+        $sqb = $this->createSqb();
+        $sqb->setParameter('parameter1', 1);
+        $sqb->setImmutableParameter('parameter2', 2);
+        $this->expectException(CannotOverrideParametersException::class);
+        $sqb->setImmutableParameters([
+            'parameter3' => 3,
+            'parameter4' => 4,
+        ]);
+    }
+
+    public function testGetImmutableParameters(): void
+    {
+        $sqb = $this->createSqb();
+        $sqb->setParameters([
+            'parameter1' => 1,
+            'parameter2' => 2,
+        ]);
+        $sqb->setImmutableParameter('parameter3', 3);
+        $sqb->setImmutableParameter('parameter2', 2);
+        self::assertParametersEquals([
+            'parameter3' => 3,
+            'parameter2' => 2,
+        ], $sqb->getImmutableParameters());
+        self::assertParametersEquals([
+            'parameter3' => 3,
+            'parameter2' => 2,
+            'parameter1' => 1,
+        ], $sqb->getParameters());
+        self::assertInstanceOf(Query\Parameter::class, $sqb->getImmutableParameter('parameter3'));
+        self::assertInstanceOf(Query\Parameter::class, $sqb->getImmutableParameter('parameter2'));
+        self::assertNull($sqb->getImmutableParameter('parameter1'));
+    }
+
+    public function testWithParameter(): void
+    {
+        $sqb = $this->createSqb();
+        self::assertParametersEquals([], $sqb->getParameters());
+        $parameterName = $sqb->withParameter('timestamp', 1);
+        self::assertEquals(':timestamp', $parameterName);
+        self::assertFalse($sqb->getParameters()->isEmpty());
+        self::assertTrue($sqb->getImmutableParameters()->isEmpty());
+        self::assertInstanceOf(Query\Parameter::class, $sqb->getParameter($parameterName));
+        self::assertNull($sqb->getImmutableParameter($parameterName));
+        self::assertSame(1, $sqb->getParameter($parameterName)->getValue());
+    }
+
+    public function testWithNumericParameter(): void
+    {
+        $sqb = $this->createSqb();
+        self::assertParametersEquals([], $sqb->getParameters());
+        $parameterName = $sqb->withParameter(0, 1);
+        self::assertEquals('0', $parameterName);
+        self::assertFalse($sqb->getParameters()->isEmpty());
+        self::assertTrue($sqb->getImmutableParameters()->isEmpty());
+        self::assertInstanceOf(Query\Parameter::class, $sqb->getParameter($parameterName));
+        self::assertNull($sqb->getImmutableParameter($parameterName));
+        self::assertSame(1, $sqb->getParameter($parameterName)->getValue());
+    }
+
+    public function testWithImmutableParameter(): void
+    {
+        $sqb = $this->createSqb();
+        self::assertParametersEquals([], $sqb->getParameters());
+        $parameterName = $sqb->withImmutableParameter('timestamp', 1);
+        self::assertEquals(':timestamp', $parameterName);
+        self::assertFalse($sqb->getParameters()->isEmpty());
+        self::assertFalse($sqb->getImmutableParameters()->isEmpty());
+        self::assertInstanceOf(Query\Parameter::class, $sqb->getParameter($parameterName));
+        self::assertInstanceOf(Query\Parameter::class, $sqb->getImmutableParameter($parameterName));
+        self::assertSame(1, $sqb->getParameter($parameterName)->getValue());
+        self::assertSame(1, $sqb->getImmutableParameter($parameterName)->getValue());
+    }
+
+    public function testWithUniqueParameter(): void
+    {
+        $sqb = $this->createSqb();
+        self::assertParametersEquals([], $sqb->getParameters());
+        $parameterName = $sqb->withUniqueParameter('timestamp', 1);
+        self::assertNotEquals(':timestamp', $parameterName);
+        self::assertStringContainsString('timestamp', $parameterName);
+        self::assertStringStartsWith(':', $parameterName);
+        self::assertFalse($sqb->getParameters()->isEmpty());
+        self::assertTrue($sqb->getImmutableParameters()->isEmpty());
+        self::assertInstanceOf(Query\Parameter::class, $sqb->getParameter($parameterName));
+        self::assertNull($sqb->getImmutableParameter($parameterName));
+        self::assertSame(1, $sqb->getParameter($parameterName)->getValue());
+    }
+
+    public function testWithUniqueNumericParameter(): void
+    {
+        $sqb = $this->createSqb();
+        self::assertParametersEquals([], $sqb->getParameters());
+        $parameterName = $sqb->withUniqueParameter(0, 1);
+        self::assertNotEquals('0', $parameterName);
+        self::assertStringContainsString('0', $parameterName);
+        self::assertStringStartsWith(':', $parameterName);
+        self::assertFalse($sqb->getParameters()->isEmpty());
+        self::assertTrue($sqb->getImmutableParameters()->isEmpty());
+        self::assertInstanceOf(Query\Parameter::class, $sqb->getParameter($parameterName));
+        self::assertNull($sqb->getImmutableParameter($parameterName));
+        self::assertSame(1, $sqb->getParameter($parameterName)->getValue());
+    }
+
+    public function testWithUniqueImmutableParameter(): void
+    {
+        $sqb = $this->createSqb();
+        self::assertParametersEquals([], $sqb->getParameters());
+        $parameterName = $sqb->withUniqueImmutableParameter('timestamp', 1);
+        self::assertNotEquals(':timestamp', $parameterName);
+        self::assertStringContainsString('timestamp', $parameterName);
+        self::assertStringStartsWith(':', $parameterName);
+        self::assertFalse($sqb->getParameters()->isEmpty());
+        self::assertFalse($sqb->getImmutableParameters()->isEmpty());
+        self::assertInstanceOf(Query\Parameter::class, $sqb->getParameter($parameterName));
+        self::assertInstanceOf(Query\Parameter::class, $sqb->getImmutableParameter($parameterName));
+        self::assertSame(1, $sqb->getParameter($parameterName)->getValue());
+        self::assertSame(1, $sqb->getImmutableParameter($parameterName)->getValue());
+    }
+
+    public function testInvalidParameterNameTypeThrowsException():void
+    {
+        $sqb = $this->createSqb();
+        $this->expectException(InvalidArgumentException::class);
+        $sqb->setParameter(new \stdClass(), 1);
+    }
+
+    private function createSqb(): SharedQueryBuilder
+    {
+        return new SharedQueryBuilder(
+            new QueryBuilder(
+                $this->createStub(EntityManagerInterface::class)
+            )
+        );
+    }
+
+    private static function assertParametersEquals(
+        array $expected,
+        Collection $parameters
+    ): void {
+        $arrayParameters = [];
+        /** @var Query\Parameter $param */
+        foreach ($parameters as $param) {
+            $arrayParameters[$param->getName()] = $param->getValue();
+        }
+        self::assertEquals($expected, $arrayParameters);
+    }
+}
