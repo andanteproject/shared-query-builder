@@ -141,7 +141,7 @@ class SharedQueryBuilder
         }
         $property = \ltrim($property, '.');
 
-        return \sprintf('%s.%s', $entity, $property);
+        return \sprintf('%s.%s', $entityAlias, $property);
     }
 
     public function getEntityForAlias(string $alias): ?string

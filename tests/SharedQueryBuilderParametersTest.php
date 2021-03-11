@@ -13,7 +13,6 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
-use PHPStan\Testing\TestCase;
 
 class SharedQueryBuilderParametersTest extends TestCase
 {
@@ -189,15 +188,6 @@ class SharedQueryBuilderParametersTest extends TestCase
         $this->expectException(InvalidArgumentException::class);
         // @phpstan-ignore-next-line
         $sqb->setParameter(new \stdClass(), 1);
-    }
-
-    private function createSqb(): SharedQueryBuilder
-    {
-        return new SharedQueryBuilder(
-            new QueryBuilder(
-                $this->createStub(EntityManagerInterface::class)
-            )
-        );
     }
 
     /**
