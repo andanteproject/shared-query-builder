@@ -29,6 +29,7 @@ conventions.
 - Ask [query builder](https://www.doctrine-project.org/projects/doctrine-orm/en/2.8/reference/query-builder.html)
   which alias is used for an entity when you are outside its creation context;
 - **Lazy joins** to declare join statements to be performed only if related criteria are defined;
+- **Immutable** and **unique** query **parameters**;
 - Works like magic ✨.
 
 ## Requirements
@@ -152,15 +153,15 @@ $sqb->lazyLeftJoin(/* args */);
 By doing this, you are defining a `join` statement **without actually adding it** to your DQL query. It is going to be
 added to your DQL query only when you add **another condition/dql part** which refers to it. Automagically ✨.
 
-Based on how much confused you are right now, you can check for [why you should need this](#why-do-i-need-this) or [some examples](#examples) to achieve your "OMG" revelation moment.
+Based on how much confused you are right now, you can check for [why you should need this](#why-do-i-need-this)
+or [some examples](#examples) to achieve your "OMG" revelation moment.
 
 ## Examples
 
 Let's suppose we need to list `User` entities but we also have an **optional filter** to search an user by it's
-address `Building` name. 
+address `Building` name.
 
-There is no need to perform any join until we decide to use that filter. We can use **Laxy
-Join** to achieve this.
+There is no need to perform any join until we decide to use that filter. We can use **Laxy Join** to achieve this.
 
 ```php
 $sqb = SharedQueryBuilder::wrap($userRepository->createQueryBuilder('u'));
@@ -198,8 +199,8 @@ $users = $sqb->getQuery()->getResults();
 //       AND b.name = 'Building A'
 ```
 
-You are probably thinking: **why don't we achieve the same result with the following, more common, way**? (keep in mind that avoid to perform
-unecessary joins is still a requirement)
+You are probably thinking: **why don't we achieve the same result with the following, more common, way**? (keep in mind
+that avoid to perform unecessary joins is still a requirement)
 
 ```php
 // How you could achieve this without SharedQueryBuilder
@@ -228,14 +229,15 @@ $users = $qb->getQuery()->getResults(); // Same result as example shown before
 
 The code above is perfectly fine if you build this whole query in the **same context**:
 
-- 👍🏻 You are *aware* of the whole query building process;
-- 👍🏻 You are *aware* of which entities are involved;
-- 👍🏻 You are *aware* of which alias are defined for each entity.
+- 👍 You are *aware* of the whole query building process;
+- 👍 You are *aware* of which entities are involved;
+- 👍 You are *aware* of which alias are defined for each entity.
+- 👍 You are *aware* of which query parameters are defined and their purpose.
 
 But you have problems:
 
-- 👎🏻 You are mixing query structure definition with optional filtering criteria.
-- 👎🏻 Code is is quickly going to be an unreadable mess.
+- 👎 You are mixing query structure definition with optional filtering criteria.
+- 👎 Code is is quickly going to be an unreadable mess.
 
 ### A real world case
 
@@ -296,12 +298,14 @@ class BuildingNameFilter implements FilterInterface
 
 **We are committing some multiple sins here! 💀 The context is changed.**
 
-- 👎🏻 You are *not aware* of the whole query building process. Is the given QueryBuilder even a query on User entity?;
-- 👎🏻 You are *not aware* of which entities are involved. Which entities are already been joined?;
-- 👎🏻 You are *not aware* of which aliases are defined for each entity. No way we are calling `u.address` by convention
+- 👎 You are *not aware* of the whole query building process. Is the given QueryBuilder even a query on User entity?;
+- 👎 You are *not aware* of which entities are involved. Which entities are already been joined?;
+- 👎 You are *not aware* of which aliases are defined for each entity. No way we are calling `u.address` by convention
   🤨;
-- 👎🏻 Our job in this context is just to apply some filter. We *can* change the query by adding some join statements
-  but we *should avoid* that. What if another filter also need to perform those joins? Devastating. 😵
+- 👎 You are *aware* of what parameters have been defined (`$qb->getParameters()`), but you are *not aware* why they
+  have been defined, for which purpose and you can also *override* them changing elsewhere behavior;
+- 👎 Our job in this context is just to apply some filter. We *can* change the query by adding some join statements but
+  we *should avoid* that. What if another filter also need to perform those joins? Devastating. 😵
 
 #### This's why SharedQueryBuilder is going to save your ass in these situations
 
@@ -309,10 +313,11 @@ Let's see how we can solve all these problems with `SharedQueryBuilder` (you can
 
 Using `SharedQueryBuilder` you can:
 
-- 👍🏻 Define `lazy join` to allow them to be performed only if they are needed;
-- 👍🏻 You can **check if an entity is involved in a query** and then apply some business logic;
-- 👍🏻 You can **ask the query builder** which *alias* is used for a specific entity so you are not going to guess
-  aliases or sharing them between classes using constants (I know you thought of that 🧐).
+- 👍 Define **lazy join** to allow them to be performed only if they are needed;
+- 👍 Define some parameters **immutable** to be sure value is not going to be changed elsewhere;
+- 👍 You can **check if an entity is involved in a query** and then apply some business logic;
+- 👍 You can **ask the query builder** which *alias* is used for a specific entity so you are not going to guess aliases
+  or sharing them between classes using constants (I know you thought of that 🧐).
 
 ```php
 // UserController.php
@@ -328,7 +333,7 @@ class UserController extends Controller
             ->lazyJoin('u.address', 'a')
             ->lazyJoin('a.building', 'b')
             ->andWhere($sqb->expr()->eq('u.verifiedEmail', ':verified_email'))
-            ->setParameter('verified_email', true);
+            ->setImmutableParameter('verified_email', true);
         
         // Now Apply some optional filters from Request
         // Let's suppose we have an "applyFilters" method which is giving QueryBuilder and Request
@@ -361,23 +366,125 @@ class BuildingNameFilter implements FilterInterface
             $sqb
                 ->andWhere(
                     // We can ask Query builder for the "Building" alias instead of guessing it/retrieve somewhere else 💋
-                    $sqb->expr()->eq($sqb->withAlias(Building::class,'name'), ':building_name_value')
+                    $sqb->expr()->eq($sqb->withAlias(Building::class, 'name'), ':building_name_value')
                     // You can also use $sqb->getAliasForEntity(Building::class) to discover alias is 'b';
                 )
-                ->setParameter('building_name_value', $buildingNameFilter)
+                ->setImmutableParameter('building_name_value', $buildingNameFilter)
             ;
         }
     }
 }
 ```
 
-- 👍🏻 No extra join statements executed when there is no need for them;
-- 👍🏻 We can discover if the Query Builder is handling an Entity and then apply our business logic;
-- 👍🏻 We are not guessing entity aliases;
-- 👍🏻 Our filter class is only responsible for filtering;
-- 👍🏻 There can be multiple filter class handling different criteria on the same entity without having duplicated join
+- 👍 No extra join statements executed when there is no need for them;
+- 👍 No way to change/override parameters value once defined;
+- 👍 We can discover if the Query Builder is handling an Entity and then apply our business logic;
+- 👍 We are not guessing entity aliases;
+- 👍 Our filter class is only responsible for filtering;
+- 👍 There can be multiple filter class handling different criteria on the same entity without having duplicated join
   statements;
-- The world is a happier place 💁.
+
+#### Immutable Parameters
+
+Shared query builder has **Immutable Parameters**. Once defined, they cannot be changed otherwise and *Exception* will
+be raised.
+
+```php
+// $sqb instanceof Andante\Doctrine\ORM\SharedQueryBuilder
+
+// set a common Query Builder parameter, as you are used to 
+$sqb->setParameter('parameter_name', 'parameterValue');
+
+// set an immutable common Query Builder parameter. It cannot be changed otherwise an exception will be raised.
+$sqb->setImmutableParameter('immutable_parameter_name', 'parameterValue');
+
+// get a collection of all query parameters (commons + immutables!)
+$sqb->getParameters();
+
+// get a collection of all immutable query parameters (exclude commons)
+$sqb->getImmutableParameters();
+
+// Sets a parameter and return parameter name as string instead of $sqb.
+$sqb->withParameter(':parameter_name', 'parameterValue');
+$sqb->withImmutableParameter(':immutable_parameter_name', 'parameterValue');
+// This allows you to write something like this:
+$sqb->expr()->eq('building.name', $sqb->withParameter(':building_name_value', $buildingNameFilter));
+
+// The two following methods sets "unique" parameters. See "Unique parameters" doc section for more...
+$sqb->withUniqueParameter(':parameter_name', 'parameterValue');
+$sqb->withUniqueImmutableParameter(':parameter_name', 'parameterValue');
+```
+
+#### Set parameter and use it in expression at the same moment
+
+If you are sure you are not going to use a parameter in multiple places inside your query, you can write the following
+code 🙌
+
+```php
+$sqb
+    ->andWhere(
+        $sqb->expr()->eq(
+            $sqb->withAlias(Building::class, 'name'), 
+            ':building_name_value'
+        )
+    )
+    ->setImmutableParameter('building_name_value', $buildingNameFilter)
+;
+```
+
+this way 👇👇👇
+
+```php
+$sqb
+    ->andWhere(
+        $sqb->expr()->eq(
+            $sqb->withAlias(Building::class, 'name'), 
+            $sqb->withImmutableParameter(':building_name_value', $buildingNameFilter) // return ":building_name_value" but also sets immutable parameter
+        )
+    )
+;
+
+```
+
+#### Unique parameters
+
+Beside [immutable parameters](#immutable-parameters), you can also demand query builder the generation of a parameter
+name. Using the following methods, query builder will decorate names to avoid conflicts with already declared ones (
+which cannot even happen with immutable parameters).
+
+```php
+$sqb
+    ->andWhere(
+        $sqb->expr()->eq(
+           'building.name', 
+            $sqb->withUniqueParameter(':name', $buildingNameFilter) // return ":param_name_4b3403665fea6" making sure parameter name is not already in use and sets parameter value.
+        )
+    )
+    ->andWhere(
+        $sqb->expr()->gte(
+           'building.createdAt', 
+            $sqb->withUniqueImmutableParameter(':created_at', new \DateTime('-5 days ago'))  // return ":param_created_at_5819f3ad1c0ce" making sure parameter name is not already in use and sets immutable parameter value.
+        )
+    )
+    ->andWhere(
+        $sqb->expr()->lte(
+           'building.createdAt',
+            $sqb->withUniqueImmutableParameter(':created_at', new \DateTime('today midnight'))  // return ":param_created_at_604a8362bf00c" making sure parameter name is not already in use and sets immutable parameter value.
+        )
+    )
+;
+
+/* 
+ * Query Builder has now 3 parameters:
+ *  - param_name_4b3403665fea6 (common)
+ *  - param_created_at_5819f3ad1c0ce (immutable)
+ *  - param_created_at_604a8362bf00c (immutable)
+ */
+```
+
+### Conclusion
+
+The world is a happier place 💁.
 
 Give us a ⭐️ if your world is now a happier place too! 💃🏻
 

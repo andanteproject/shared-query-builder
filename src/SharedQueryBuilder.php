@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace Andante\Doctrine\ORM;
 
+use Andante\Doctrine\ORM\Exception\CannotOverrideImmutableParameterException;
+use Andante\Doctrine\ORM\Exception\CannotOverrideParametersException;
+use Andante\Doctrine\ORM\Exception\DqlErrorException;
+use Andante\Doctrine\ORM\Exception\InvalidArgumentException;
 use Andante\Doctrine\ORM\Exception\LogicException;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Criteria;
@@ -31,8 +35,6 @@ use Doctrine\ORM\QueryBuilder;
  * @method string getRootAlias()
  * @method array getRootAliases()
  * @method array getRootEntities()
- * @method self setParameter($key, $value, $type = null)
- * @method self setParameters($parameters)
  * @method ArrayCollection getParameters()
  * @method Parameter|null getParameter($key)
  * @method self setFirstResult($firstResult)
@@ -74,6 +76,9 @@ class SharedQueryBuilder
     /** @var array<string, array> */
     private array $joinRegistry = [];
 
+    /** @var ArrayCollection<int, Query\Parameter> */
+    private ArrayCollection $immutableParameters;
+
     private array $lazyJoinsCheckAfterMethods = [
         'orWhere',
         'where',
@@ -99,6 +104,7 @@ class SharedQueryBuilder
     {
         self::assertQueryBuilderIsVirgin($queryBuilder);
         $this->qb = $queryBuilder;
+        $this->immutableParameters = new ArrayCollection();
     }
 
     public static function wrap(QueryBuilder $qb): self
@@ -166,16 +172,26 @@ class SharedQueryBuilder
     /**
      * @param string|null $condition
      */
-    public function lazyJoin(string $join, string $alias, ?string $conditionType = null, $condition = null, ?string $indexBy = null): self
-    {
+    public function lazyJoin(
+        string $join,
+        string $alias,
+        ?string $conditionType = null,
+        $condition = null,
+        ?string $indexBy = null
+    ): self {
         return $this->lazyInnerJoin($join, $alias, $conditionType, $condition, $indexBy);
     }
 
     /**
      * @param string|null $condition
      */
-    public function lazyInnerJoin(string $join, string $alias, ?string $conditionType = null, $condition = null, ?string $indexBy = null): self
-    {
+    public function lazyInnerJoin(
+        string $join,
+        string $alias,
+        ?string $conditionType = null,
+        $condition = null,
+        ?string $indexBy = null
+    ): self {
         $entityClass = $this->getEntityClassFromFirstJoinStringArgument($join);
         $this->assertHasNotLazyJoinForClass($entityClass);
         $this->lazyJoinRegistry[$entityClass] = [
@@ -189,8 +205,13 @@ class SharedQueryBuilder
     /**
      * @param string|null $condition
      */
-    public function lazyLeftJoin(string $join, string $alias, ?string $conditionType = null, $condition = null, ?string $indexBy = null): self
-    {
+    public function lazyLeftJoin(
+        string $join,
+        string $alias,
+        ?string $conditionType = null,
+        $condition = null,
+        ?string $indexBy = null
+    ): self {
         $entityClass = $this->getEntityClassFromFirstJoinStringArgument($join);
         $this->assertHasNotLazyJoinForClass($entityClass);
         $this->lazyJoinRegistry[$entityClass] = [
@@ -204,16 +225,26 @@ class SharedQueryBuilder
     /**
      * @param string|null $condition
      */
-    public function join(string $join, string $alias, ?string $conditionType = null, $condition = null, ?string $indexBy = null): self
-    {
+    public function join(
+        string $join,
+        string $alias,
+        ?string $conditionType = null,
+        $condition = null,
+        ?string $indexBy = null
+    ): self {
         return $this->innerJoin($join, $alias, $conditionType, $condition, $indexBy);
     }
 
     /**
      * @param string|null $condition
      */
-    public function innerJoin(string $join, string $alias, ?string $conditionType = null, $condition = null, ?string $indexBy = null): self
-    {
+    public function innerJoin(
+        string $join,
+        string $alias,
+        ?string $conditionType = null,
+        $condition = null,
+        ?string $indexBy = null
+    ): self {
         $entityClass = $this->getEntityClassFromFirstJoinStringArgument($join);
         $this->assertHasNotJoinForClass($entityClass);
         $args = \func_get_args();
@@ -230,8 +261,13 @@ class SharedQueryBuilder
     /**
      * @param string|null $condition
      */
-    public function leftJoin(string $join, string $alias, ?string $conditionType = null, $condition = null, ?string $indexBy = null): self
-    {
+    public function leftJoin(
+        string $join,
+        string $alias,
+        ?string $conditionType = null,
+        $condition = null,
+        ?string $indexBy = null
+    ): self {
         $entityClass = $this->getEntityClassFromFirstJoinStringArgument($join);
         $this->assertHasNotJoinForClass($entityClass);
         $args = \func_get_args();
@@ -353,7 +389,7 @@ class SharedQueryBuilder
     private static function assertQueryBuilderIsVirgin(QueryBuilder $qb): void
     {
         if (\count($qb->getDQLPart('join')) > 0) {
-            throw new LogicException(
+            throw new DqlErrorException(
                 \sprintf(
                     'You cannot use %s with a %s that has already declared JOINs.',
                     self::class,
@@ -366,7 +402,7 @@ class SharedQueryBuilder
     private function assertHasNotLazyJoinForClass(string $entityClass): void
     {
         if (isset($this->lazyJoinRegistry[$entityClass])) {
-            throw new LogicException(
+            throw new DqlErrorException(
                 \sprintf(
                     '%s supports only one lazy join per class. %s has already been used.',
                     self::class,
@@ -379,7 +415,7 @@ class SharedQueryBuilder
     private function assertHasNotJoinForClass(string $entityClass): void
     {
         if (isset($this->joinRegistry[$entityClass])) {
-            throw new LogicException(
+            throw new DqlErrorException(
                 \sprintf(
                     '%s supports only one join per class. %s has already been used.',
                     self::class,
@@ -458,6 +494,170 @@ class SharedQueryBuilder
     }
 
     /**
+     * @param int|string      $key   the parameter position or name
+     * @param mixed           $value the parameter value
+     * @param int|string|null $type  PDO::PARAM_* or \Doctrine\DBAL\Types\Type::* constant
+     */
+    public function withParameter($key, $value, $type = null): string
+    {
+        self::assertIntOrString($key);
+        $this->setParameter($key, $value, $type);
+        /** @var Query\Parameter $param */
+        $param = $this->qb->getParameter($key);
+
+        return $this->getPrefixedParameterNameIfString($param);
+    }
+
+    /**
+     * @param int|string      $key   the parameter position or name
+     * @param mixed           $value the parameter value
+     * @param int|string|null $type  PDO::PARAM_* or \Doctrine\DBAL\Types\Type::* constant
+     */
+    public function withImmutableParameter($key, $value, $type = null): string
+    {
+        self::assertIntOrString($key);
+        $this->setImmutableParameter($key, $value, $type);
+        /** @var Query\Parameter $param */
+        $param = $this->qb->getParameter($key);
+
+        return $this->getPrefixedParameterNameIfString($param);
+    }
+
+    /**
+     * @param int|string      $key   the parameter position or name
+     * @param mixed           $value the parameter value
+     * @param int|string|null $type  PDO::PARAM_* or \Doctrine\DBAL\Types\Type::* constant
+     */
+    public function withUniqueParameter($key, $value, $type = null): string
+    {
+        self::assertIntOrString($key);
+        return $this->withParameter($this->generateUniqueParameterName((string) $key), $value, $type);
+    }
+
+    /**
+     * @param int|string      $key   the parameter position or name
+     * @param mixed           $value the parameter value
+     * @param int|string|null $type  PDO::PARAM_* or \Doctrine\DBAL\Types\Type::* constant
+     */
+    public function withUniqueImmutableParameter($key, $value, $type = null): string
+    {
+        self::assertIntOrString($key);
+        return $this->withImmutableParameter($this->generateUniqueParameterName((string) $key), $value, $type);
+    }
+
+    protected function generateUniqueParameterName(string $paramName): string
+    {
+        $paramName = Query\Parameter::normalizeName($paramName);
+        do {
+            $paramName = \uniqid(\sprintf('param_%s_', $paramName), false);
+        } while (null !== $this->qb->getParameter($paramName));
+
+        return $paramName;
+    }
+
+    protected function getPrefixedParameterNameIfString(Query\Parameter $param): string
+    {
+        $paramName = $param->getName();
+
+        return \is_numeric($paramName) ? $paramName : \sprintf(':%s', $paramName);
+    }
+
+    /**
+     * @param int|string      $key   the parameter position or name
+     * @param mixed           $value the parameter value
+     * @param int|string|null $type  PDO::PARAM_* or \Doctrine\DBAL\Types\Type::* constant
+     */
+    public function setParameter($key, $value, $type = null): self
+    {
+        self::assertIntOrString($key);
+        $parameter = $this->qb->getParameter($key);
+        if (null !== $parameter && $this->isImmutableParameter($parameter)) {
+            throw new CannotOverrideImmutableParameterException($parameter);
+        }
+        $this->qb->setParameter($key, $value, $type);
+
+        return $this;
+    }
+
+    /**
+     * @param int|string      $key   the parameter position or name
+     * @param mixed           $value the parameter value
+     * @param int|string|null $type  PDO::PARAM_* or \Doctrine\DBAL\Types\Type::* constant
+     */
+    public function setImmutableParameter($key, $value, $type = null): self
+    {
+        self::assertIntOrString($key);
+        $parameter = $this->qb->getParameter($key);
+        if (null !== $parameter && $this->isImmutableParameter($parameter)) {
+            throw new CannotOverrideImmutableParameterException($parameter);
+        }
+        $this->qb->setParameter($key, $value, $type);
+        /** @var Query\Parameter $parameter */
+        $parameter = $this->qb->getParameter($key);
+        $this->immutableParameters->add($parameter);
+
+        return $this;
+    }
+
+    protected function isImmutableParameter(Query\Parameter $parameter): bool
+    {
+        return $this->immutableParameters->contains($parameter);
+    }
+
+    /**
+     * @param array<string|int, mixed>|ArrayCollection<int, Query\Parameter> $parameters the query parameters to set
+     */
+    public function setParameters($parameters): self
+    {
+        if (! $this->immutableParameters->isEmpty()) {
+            throw new CannotOverrideParametersException();
+        }
+        // @phpstan-ignore-next-line
+        $this->qb->setParameters($parameters);
+
+        return $this;
+    }
+
+    /**
+     * @param array<string|int, mixed>|ArrayCollection<int, Query\Parameter> $parameters the query parameters to set
+     */
+    public function setImmutableParameters($parameters): self
+    {
+        if (! $this->immutableParameters->isEmpty()) {
+            throw new CannotOverrideParametersException();
+        }
+        // @phpstan-ignore-next-line
+        $this->qb->setParameters($parameters);
+        foreach ($this->qb->getParameters()->getValues() as $param) {
+            $this->immutableParameters->add($param);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @param int|string $key the parameter position or name
+     */
+    public function getImmutableParameter($key): ?Query\Parameter
+    {
+        self::assertIntOrString($key);
+        $param = $this->qb->getParameter($key);
+        if (null !== $param && $this->immutableParameters->contains($param)) {
+            return $param;
+        }
+
+        return null;
+    }
+
+    /**
+     * @return ArrayCollection<int, Query\Parameter>
+     */
+    public function getImmutableParameters(): ArrayCollection
+    {
+        return $this->immutableParameters;
+    }
+
+    /**
      * @return self|mixed
      */
     public function __call(string $method, array $args)
@@ -472,5 +672,17 @@ class SharedQueryBuilder
             return $returnObj === $this->qb ? $this : $returnObj;
         }
         throw new LogicException(sprintf('Undefined method - %s::%s', \get_class($this->qb), $method));
+    }
+
+    /**
+     * @param mixed $value
+     */
+    private static function assertIntOrString($value): void
+    {
+        if (! is_int($value) && ! is_string($value)) {
+            throw new InvalidArgumentException(
+                \sprintf('Value must be string or int, %s given', get_debug_type($value))
+            );
+        }
     }
 }
