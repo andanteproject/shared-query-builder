@@ -10,7 +10,6 @@ use Andante\Doctrine\ORM\Exception\DqlErrorException;
 use Andante\Doctrine\ORM\Exception\InvalidArgumentException;
 use Andante\Doctrine\ORM\Exception\LogicException;
 use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\Common\Collections\Collection;
 use Doctrine\Common\Collections\Criteria;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Query;
@@ -77,7 +76,8 @@ class SharedQueryBuilder
     /** @var array<string, array> */
     private array $joinRegistry = [];
 
-    private Collection $immutableParameters;
+    /** @var ArrayCollection<int, Query\Parameter> */
+    private ArrayCollection $immutableParameters;
 
     private array $lazyJoinsCheckAfterMethods = [
         'orWhere',
@@ -605,26 +605,28 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param array|\Doctrine\Common\Collections\ArrayCollection $parameters the query parameters to set
+     * @param array<string|int, mixed>|ArrayCollection<int, Query\Parameter> $parameters the query parameters to set
      */
     public function setParameters($parameters): self
     {
         if (! $this->immutableParameters->isEmpty()) {
             throw new CannotOverrideParametersException();
         }
+        // @phpstan-ignore-next-line
         $this->qb->setParameters($parameters);
 
         return $this;
     }
 
     /**
-     * @param array|\Doctrine\Common\Collections\ArrayCollection $parameters the query parameters to set
+     * @param array<string|int, mixed>|ArrayCollection<int, Query\Parameter> $parameters the query parameters to set
      */
     public function setImmutableParameters($parameters): self
     {
         if (! $this->immutableParameters->isEmpty()) {
             throw new CannotOverrideParametersException();
         }
+        // @phpstan-ignore-next-line
         $this->qb->setParameters($parameters);
         foreach ($this->qb->getParameters()->getValues() as $param) {
             $this->immutableParameters->add($param);
@@ -640,14 +642,17 @@ class SharedQueryBuilder
     {
         self::assertIntOrString($key);
         $param = $this->qb->getParameter($key);
-        if ($this->immutableParameters->contains($param)) {
+        if (null !== $param && $this->immutableParameters->contains($param)) {
             return $param;
         }
 
         return null;
     }
 
-    public function getImmutableParameters(): Collection
+    /**
+     * @return ArrayCollection<int, Query\Parameter>
+     */
+    public function getImmutableParameters(): ArrayCollection
     {
         return $this->immutableParameters;
     }

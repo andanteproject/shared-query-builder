@@ -9,7 +9,7 @@ use Andante\Doctrine\ORM\Exception\CannotOverrideImmutableParameterException;
 use Andante\Doctrine\ORM\Exception\CannotOverrideParametersException;
 use Andante\Doctrine\ORM\Exception\InvalidArgumentException;
 use Andante\Doctrine\ORM\SharedQueryBuilder;
-use Doctrine\Common\Collections\Collection;
+use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\QueryBuilder;
@@ -183,10 +183,11 @@ class SharedQueryBuilderParametersTest extends TestCase
         self::assertSame(1, $sqb->getImmutableParameter($parameterName)->getValue());
     }
 
-    public function testInvalidParameterNameTypeThrowsException():void
+    public function testInvalidParameterNameTypeThrowsException(): void
     {
         $sqb = $this->createSqb();
         $this->expectException(InvalidArgumentException::class);
+        // @phpstan-ignore-next-line
         $sqb->setParameter(new \stdClass(), 1);
     }
 
@@ -199,9 +200,13 @@ class SharedQueryBuilderParametersTest extends TestCase
         );
     }
 
+    /**
+     * @param array<string|int, mixed>              $expected
+     * @param ArrayCollection<int, Query\Parameter> $parameters
+     */
     private static function assertParametersEquals(
         array $expected,
-        Collection $parameters
+        ArrayCollection $parameters
     ): void {
         $arrayParameters = [];
         /** @var Query\Parameter $param */
