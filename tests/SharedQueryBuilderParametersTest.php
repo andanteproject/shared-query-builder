@@ -83,9 +83,9 @@ class SharedQueryBuilderParametersTest extends TestCase
             'parameter2' => 2,
         ], $sqb->getImmutableParameters());
         self::assertParametersEquals([
-            'parameter3' => 3,
-            'parameter2' => 2,
             'parameter1' => 1,
+            'parameter2' => 2,
+            'parameter3' => 3,
         ], $sqb->getParameters());
         self::assertInstanceOf(Query\Parameter::class, $sqb->getImmutableParameter('parameter3'));
         self::assertInstanceOf(Query\Parameter::class, $sqb->getImmutableParameter('parameter2'));

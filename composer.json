@@ -36,7 +36,8 @@
         "phpstan/extension-installer": "^1.1",
         "phpstan/phpstan-symfony": "^0.12.20",
         "ext-json": "*",
-        "friendsofphp/php-cs-fixer": "^3.35"
+        "friendsofphp/php-cs-fixer": "^3.35",
+        "doctrine/annotations": "^2.0"
     },
     "autoload": {
         "psr-4": {
