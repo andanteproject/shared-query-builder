@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-
 namespace Andante\Doctrine\ORM\Tests\Model;
 
 use Doctrine\Common\Collections\ArrayCollection;
@@ -42,7 +41,6 @@ class Organization
         $this->persons = new ArrayCollection();
     }
 
-
     public function getId(): ?int
     {
         return $this->id;
@@ -73,7 +71,7 @@ class Organization
     /**
      * @return Collection<int, Person>
      */
-    public function getPersons() : Collection
+    public function getPersons(): Collection
     {
         return $this->persons;
     }

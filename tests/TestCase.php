@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-
 namespace Andante\Doctrine\ORM\Tests;
 
 use Andante\Doctrine\ORM\SharedQueryBuilder;
