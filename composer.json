@@ -53,7 +53,7 @@
         "phpunit-base": "phpunit tests/",
         "phpunit": "@phpunit-base --testdox",
         "phpunit-coverage-text": "@phpunit-base --coverage-text --colors=never",
-        "cs-check": "mkdir -p var/cache && php-cs-fixer fix --dry-run --diff --cache-file=var/cache/.php_cs.cache --config=.php_cs.dist",
+        "cs-check": "mkdir -p var/cache && php-cs-fixer fix --dry-run --diff --cache-file=var/cache/.php_cs.cache --config=.php-cs-fixer.dist.php",
         "cs-fix": "mkdir -p var/cache && php-cs-fixer fix --diff --cache-file=var/cache/.php_cs.cache --config=.php-cs-fixer.dist.php --allow-risky=yes"
     },
     "config": {
