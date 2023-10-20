@@ -106,10 +106,10 @@ class SharedQueryBuilderTest extends KernelTestCase
 
         $sqb->andWhere($sqb->expr()->isNull('document'));
 
-        self::assertSame(['organization','person','employee','paper','document'], $sqb->getAllAliases());
+        self::assertSame(['organization', 'person', 'employee', 'paper', 'document'], $sqb->getAllAliases());
     }
 
-    public function assertExplodeIfNotVirgin() : void
+    public function assertExplodeIfNotVirgin(): void
     {
         $this->expectException(LogicException::class);
         /** @var EntityManagerInterface $entityManager */

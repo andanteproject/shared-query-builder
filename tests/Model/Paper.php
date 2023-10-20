@@ -2,7 +2,6 @@
 
 declare(strict_types=1);
 
-
 namespace Andante\Doctrine\ORM\Tests\Model;
 
 use Doctrine\Common\Collections\ArrayCollection;
@@ -72,7 +71,7 @@ class Paper
     /**
      * @return Collection<int, Employee>
      */
-    public function getEmployees() : Collection
+    public function getEmployees(): Collection
     {
         return $this->employees;
     }

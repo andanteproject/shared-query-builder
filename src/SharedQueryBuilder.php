@@ -18,53 +18,53 @@ use Doctrine\ORM\Query\Parameter;
 use Doctrine\ORM\QueryBuilder;
 
 /**
- * @method Expr expr()
- * @method self setCacheable($cacheable)
- * @method bool isCacheable()
- * @method self setCacheRegion($cacheRegion)
- * @method string|null getCacheRegion()
- * @method int getLifetime()
- * @method self setLifetime($lifetime)
- * @method int getCacheMode()
- * @method self setCacheMode($cacheMode)
- * @method int getType()
- * @method EntityManager getEntityManager()
- * @method int getState()
- * @method string getDQL()
- * @method Query getQuery()
- * @method string getRootAlias()
- * @method array getRootAliases()
- * @method array getRootEntities()
+ * @method Expr            expr()
+ * @method self            setCacheable($cacheable)
+ * @method bool            isCacheable()
+ * @method self            setCacheRegion($cacheRegion)
+ * @method string|null     getCacheRegion()
+ * @method int             getLifetime()
+ * @method self            setLifetime($lifetime)
+ * @method int             getCacheMode()
+ * @method self            setCacheMode($cacheMode)
+ * @method int             getType()
+ * @method EntityManager   getEntityManager()
+ * @method int             getState()
+ * @method string          getDQL()
+ * @method Query           getQuery()
+ * @method string          getRootAlias()
+ * @method array           getRootAliases()
+ * @method array           getRootEntities()
  * @method ArrayCollection getParameters()
- * @method Parameter|null getParameter($key)
- * @method self setFirstResult($firstResult)
- * @method int|null getFirstResult()
- * @method self setMaxResults($maxResults)
- * @method int|null getMaxResults()
- * @method self add($dqlPartName, $dqlPart, $append = false)
- * @method self select($select = null)
- * @method self distinct($flag = true)
- * @method self addSelect($select = null)
- * @method self delete($delete = null, $alias = null)
- * @method self update($update = null, $alias = null)
- * @method self from($from, $alias, ?string $indexBy = null)
- * @method self indexBy($alias, $indexBy)
- * @method self set($key, $value)
- * @method self where($predicates)
- * @method self andWhere($expr)
- * @method self orWhere($expr)
- * @method self groupBy($groupBy)
- * @method self addGroupBy($groupBy)
- * @method self having($having)
- * @method self andHaving($having)
- * @method self orHaving($having)
- * @method self orderBy($sort, $order = null)
- * @method self addOrderBy($sort, $order = null)
- * @method self addCriteria(Criteria $criteria)
- * @method mixed getDQLPart($queryPartName)
- * @method array getDQLParts()
- * @method self resetDQLParts($parts = null)
- * @method self resetDQLPart($part)
+ * @method Parameter|null  getParameter($key)
+ * @method self            setFirstResult($firstResult)
+ * @method int|null        getFirstResult()
+ * @method self            setMaxResults($maxResults)
+ * @method int|null        getMaxResults()
+ * @method self            add($dqlPartName, $dqlPart, $append = false)
+ * @method self            select($select = null)
+ * @method self            distinct($flag = true)
+ * @method self            addSelect($select = null)
+ * @method self            delete($delete = null, $alias = null)
+ * @method self            update($update = null, $alias = null)
+ * @method self            from($from, $alias, ?string $indexBy = null)
+ * @method self            indexBy($alias, $indexBy)
+ * @method self            set($key, $value)
+ * @method self            where($predicates)
+ * @method self            andWhere($expr)
+ * @method self            orWhere($expr)
+ * @method self            groupBy($groupBy)
+ * @method self            addGroupBy($groupBy)
+ * @method self            having($having)
+ * @method self            andHaving($having)
+ * @method self            orHaving($having)
+ * @method self            orderBy($sort, $order = null)
+ * @method self            addOrderBy($sort, $order = null)
+ * @method self            addCriteria(Criteria $criteria)
+ * @method mixed           getDQLPart($queryPartName)
+ * @method array           getDQLParts()
+ * @method self            resetDQLParts($parts = null)
+ * @method self            resetDQLPart($part)
  */
 class SharedQueryBuilder
 {
@@ -171,6 +171,10 @@ class SharedQueryBuilder
 
     /**
      * @param string|null $condition
+     * @param string      $join
+     * @param string      $alias
+     * @param ?string     $conditionType
+     * @param ?string     $indexBy
      */
     public function lazyJoin(
         string $join,
@@ -184,6 +188,10 @@ class SharedQueryBuilder
 
     /**
      * @param string|null $condition
+     * @param string      $join
+     * @param string      $alias
+     * @param ?string     $conditionType
+     * @param ?string     $indexBy
      */
     public function lazyInnerJoin(
         string $join,
@@ -204,6 +212,10 @@ class SharedQueryBuilder
 
     /**
      * @param string|null $condition
+     * @param string      $join
+     * @param string      $alias
+     * @param ?string     $conditionType
+     * @param ?string     $indexBy
      */
     public function lazyLeftJoin(
         string $join,
@@ -224,6 +236,10 @@ class SharedQueryBuilder
 
     /**
      * @param string|null $condition
+     * @param string      $join
+     * @param string      $alias
+     * @param ?string     $conditionType
+     * @param ?string     $indexBy
      */
     public function join(
         string $join,
@@ -237,6 +253,10 @@ class SharedQueryBuilder
 
     /**
      * @param string|null $condition
+     * @param string      $join
+     * @param string      $alias
+     * @param ?string     $conditionType
+     * @param ?string     $indexBy
      */
     public function innerJoin(
         string $join,
@@ -260,6 +280,10 @@ class SharedQueryBuilder
 
     /**
      * @param string|null $condition
+     * @param string      $join
+     * @param string      $alias
+     * @param ?string     $conditionType
+     * @param ?string     $indexBy
      */
     public function leftJoin(
         string $join,
@@ -336,7 +360,7 @@ class SharedQueryBuilder
     protected function getEntityClassFromFirstJoinStringArgument(string $join): string
     {
         $entity = null;
-        if (\class_exists($join)) {
+        if (\class_exists($join) || \interface_exists($join)) {
             // First argument is entityClass
             $entity = $join;
         } else {
@@ -427,6 +451,8 @@ class SharedQueryBuilder
 
     /**
      * @return array<int, string>
+     * @param  array              $args
+     * @param  ?string            $excludeAlias
      */
     private function getLazyJoinsAliasesInJoinArgs(array $args, ?string $excludeAlias = null): array
     {
@@ -446,6 +472,7 @@ class SharedQueryBuilder
 
     /**
      * @return array<int, string>
+     * @param  string             $dql
      */
     private function getLazyJoinsAliasesInDqlString(string $dql): array
     {
@@ -479,6 +506,7 @@ class SharedQueryBuilder
 
     /**
      * @return array<int, string>
+     * @param  bool               $includeLazy
      */
     public function getAllAliases(bool $includeLazy = false): array
     {
@@ -605,28 +633,26 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param array<string|int, mixed>|ArrayCollection<int, Query\Parameter> $parameters the query parameters to set
+     * @param array<int|string, mixed>|ArrayCollection<int, Query\Parameter> $parameters the query parameters to set
      */
     public function setParameters($parameters): self
     {
         if (! $this->immutableParameters->isEmpty()) {
             throw new CannotOverrideParametersException();
         }
-        // @phpstan-ignore-next-line
         $this->qb->setParameters($parameters);
 
         return $this;
     }
 
     /**
-     * @param array<string|int, mixed>|ArrayCollection<int, Query\Parameter> $parameters the query parameters to set
+     * @param array<int|string, mixed>|ArrayCollection<int, Query\Parameter> $parameters the query parameters to set
      */
     public function setImmutableParameters($parameters): self
     {
         if (! $this->immutableParameters->isEmpty()) {
             throw new CannotOverrideParametersException();
         }
-        // @phpstan-ignore-next-line
         $this->qb->setParameters($parameters);
         foreach ($this->qb->getParameters()->getValues() as $param) {
             $this->immutableParameters->add($param);
@@ -658,7 +684,9 @@ class SharedQueryBuilder
     }
 
     /**
-     * @return self|mixed
+     * @return mixed|self
+     * @param  string     $method
+     * @param  array      $args
      */
     public function __call(string $method, array $args)
     {
@@ -684,5 +712,18 @@ class SharedQueryBuilder
                 \sprintf('Value must be string or int, %s given', get_debug_type($value))
             );
         }
+    }
+
+    public function __clone()
+    {
+        $this->qb = clone $this->qb;
+
+        $immutableParameters = [];
+
+        foreach ($this->immutableParameters as $immutableParameter) {
+            $immutableParameters[] = clone $immutableParameter;
+        }
+
+        $this->immutableParameters = new ArrayCollection($immutableParameters);
     }
 }

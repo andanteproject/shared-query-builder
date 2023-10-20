@@ -2,17 +2,13 @@
 
 declare(strict_types=1);
 
-
 namespace Andante\Doctrine\ORM\Tests;
 
 use Andante\Doctrine\ORM\Exception\CannotOverrideImmutableParameterException;
 use Andante\Doctrine\ORM\Exception\CannotOverrideParametersException;
 use Andante\Doctrine\ORM\Exception\InvalidArgumentException;
-use Andante\Doctrine\ORM\SharedQueryBuilder;
 use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\ORM\EntityManagerInterface;
 use Doctrine\ORM\Query;
-use Doctrine\ORM\QueryBuilder;
 
 class SharedQueryBuilderParametersTest extends TestCase
 {
@@ -87,9 +83,9 @@ class SharedQueryBuilderParametersTest extends TestCase
             'parameter2' => 2,
         ], $sqb->getImmutableParameters());
         self::assertParametersEquals([
-            'parameter3' => 3,
-            'parameter2' => 2,
             'parameter1' => 1,
+            'parameter2' => 2,
+            'parameter3' => 3,
         ], $sqb->getParameters());
         self::assertInstanceOf(Query\Parameter::class, $sqb->getImmutableParameter('parameter3'));
         self::assertInstanceOf(Query\Parameter::class, $sqb->getImmutableParameter('parameter2'));
@@ -101,7 +97,7 @@ class SharedQueryBuilderParametersTest extends TestCase
         $sqb = $this->createSqb();
         self::assertParametersEquals([], $sqb->getParameters());
         $parameterName = $sqb->withParameter('timestamp', 1);
-        self::assertEquals(':timestamp', $parameterName);
+        self::assertSame(':timestamp', $parameterName);
         self::assertFalse($sqb->getParameters()->isEmpty());
         self::assertTrue($sqb->getImmutableParameters()->isEmpty());
         self::assertInstanceOf(Query\Parameter::class, $sqb->getParameter($parameterName));
@@ -114,7 +110,7 @@ class SharedQueryBuilderParametersTest extends TestCase
         $sqb = $this->createSqb();
         self::assertParametersEquals([], $sqb->getParameters());
         $parameterName = $sqb->withParameter(0, 1);
-        self::assertEquals('0', $parameterName);
+        self::assertSame('0', $parameterName);
         self::assertFalse($sqb->getParameters()->isEmpty());
         self::assertTrue($sqb->getImmutableParameters()->isEmpty());
         self::assertInstanceOf(Query\Parameter::class, $sqb->getParameter($parameterName));
@@ -127,7 +123,7 @@ class SharedQueryBuilderParametersTest extends TestCase
         $sqb = $this->createSqb();
         self::assertParametersEquals([], $sqb->getParameters());
         $parameterName = $sqb->withImmutableParameter('timestamp', 1);
-        self::assertEquals(':timestamp', $parameterName);
+        self::assertSame(':timestamp', $parameterName);
         self::assertFalse($sqb->getParameters()->isEmpty());
         self::assertFalse($sqb->getImmutableParameters()->isEmpty());
         self::assertInstanceOf(Query\Parameter::class, $sqb->getParameter($parameterName));
@@ -141,7 +137,7 @@ class SharedQueryBuilderParametersTest extends TestCase
         $sqb = $this->createSqb();
         self::assertParametersEquals([], $sqb->getParameters());
         $parameterName = $sqb->withUniqueParameter('timestamp', 1);
-        self::assertNotEquals(':timestamp', $parameterName);
+        self::assertNotSame(':timestamp', $parameterName);
         self::assertStringContainsString('timestamp', $parameterName);
         self::assertStringStartsWith(':', $parameterName);
         self::assertFalse($sqb->getParameters()->isEmpty());
@@ -156,7 +152,7 @@ class SharedQueryBuilderParametersTest extends TestCase
         $sqb = $this->createSqb();
         self::assertParametersEquals([], $sqb->getParameters());
         $parameterName = $sqb->withUniqueParameter(0, 1);
-        self::assertNotEquals('0', $parameterName);
+        self::assertNotSame('0', $parameterName);
         self::assertStringContainsString('0', $parameterName);
         self::assertStringStartsWith(':', $parameterName);
         self::assertFalse($sqb->getParameters()->isEmpty());
@@ -171,7 +167,7 @@ class SharedQueryBuilderParametersTest extends TestCase
         $sqb = $this->createSqb();
         self::assertParametersEquals([], $sqb->getParameters());
         $parameterName = $sqb->withUniqueImmutableParameter('timestamp', 1);
-        self::assertNotEquals(':timestamp', $parameterName);
+        self::assertNotSame(':timestamp', $parameterName);
         self::assertStringContainsString('timestamp', $parameterName);
         self::assertStringStartsWith(':', $parameterName);
         self::assertFalse($sqb->getParameters()->isEmpty());
@@ -191,7 +187,7 @@ class SharedQueryBuilderParametersTest extends TestCase
     }
 
     /**
-     * @param array<string|int, mixed>              $expected
+     * @param array<int|string, mixed>              $expected
      * @param ArrayCollection<int, Query\Parameter> $parameters
      */
     private static function assertParametersEquals(
@@ -203,6 +199,6 @@ class SharedQueryBuilderParametersTest extends TestCase
         foreach ($parameters as $param) {
             $arrayParameters[$param->getName()] = $param->getValue();
         }
-        self::assertEquals($expected, $arrayParameters);
+        self::assertSame($expected, $arrayParameters);
     }
 }
