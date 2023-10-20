@@ -640,7 +640,6 @@ class SharedQueryBuilder
         if (! $this->immutableParameters->isEmpty()) {
             throw new CannotOverrideParametersException();
         }
-        // @phpstan-ignore-next-line
         $this->qb->setParameters($parameters);
 
         return $this;
@@ -654,7 +653,6 @@ class SharedQueryBuilder
         if (! $this->immutableParameters->isEmpty()) {
             throw new CannotOverrideParametersException();
         }
-        // @phpstan-ignore-next-line
         $this->qb->setParameters($parameters);
         foreach ($this->qb->getParameters()->getValues() as $param) {
             $this->immutableParameters->add($param);
