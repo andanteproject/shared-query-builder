@@ -34,7 +34,7 @@ class SharedQueryBuilderTest extends KernelTestCase
     public function testLazy(): void
     {
         /** @var EntityManagerInterface $entityManager */
-        $entityManager = self::$container->get('doctrine.orm.entity_manager');
+        $entityManager = self::getContainer()->get('doctrine.orm.entity_manager');
         /** @var EntityRepository<Organization> $organizationRepository */
         $organizationRepository = $entityManager->getRepository(Organization::class);
         $sqb = SharedQueryBuilder::wrap($organizationRepository->createQueryBuilder('organization'));
@@ -78,7 +78,7 @@ class SharedQueryBuilderTest extends KernelTestCase
     public function testRecursiveLazyDependency(): void
     {
         /** @var EntityManagerInterface $entityManager */
-        $entityManager = self::$container->get('doctrine.orm.entity_manager');
+        $entityManager = self::getContainer()->get('doctrine.orm.entity_manager');
         /** @var EntityRepository<Organization> $organizationRepository */
         $organizationRepository = $entityManager->getRepository(Organization::class);
         $sqb = SharedQueryBuilder::wrap($organizationRepository->createQueryBuilder('organization'));
@@ -113,7 +113,7 @@ class SharedQueryBuilderTest extends KernelTestCase
     {
         $this->expectException(LogicException::class);
         /** @var EntityManagerInterface $entityManager */
-        $entityManager = self::$container->get('doctrine.orm.entity_manager');
+        $entityManager = self::getContainer()->get('doctrine.orm.entity_manager');
         /** @var EntityRepository<Organization> $organizationRepository */
         $organizationRepository = $entityManager->getRepository(Organization::class);
         $qb = $organizationRepository->createQueryBuilder('organization');
@@ -124,7 +124,7 @@ class SharedQueryBuilderTest extends KernelTestCase
     protected function createSchema(): void
     {
         /** @var ManagerRegistry $manager */
-        $manager = self::$container->get('doctrine');
+        $manager = self::getContainer()->get('doctrine');
         /** @var EntityManagerInterface[] $ems */
         $ems = $manager->getManagers();
         /** @var EntityManagerInterface $em */
