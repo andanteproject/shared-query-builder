@@ -7,10 +7,11 @@ namespace Andante\Doctrine\ORM;
 use Andante\Doctrine\ORM\Exception\CannotOverrideImmutableParameterException;
 use Andante\Doctrine\ORM\Exception\CannotOverrideParametersException;
 use Andante\Doctrine\ORM\Exception\DqlErrorException;
-use Andante\Doctrine\ORM\Exception\InvalidArgumentException;
 use Andante\Doctrine\ORM\Exception\LogicException;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Criteria;
+use Doctrine\DBAL\ArrayParameterType;
+use Doctrine\DBAL\ParameterType;
 use Doctrine\ORM\EntityManager;
 use Doctrine\ORM\Query;
 use Doctrine\ORM\Query\Expr;
@@ -18,53 +19,53 @@ use Doctrine\ORM\Query\Parameter;
 use Doctrine\ORM\QueryBuilder;
 
 /**
- * @method Expr            expr()
- * @method self            setCacheable($cacheable)
- * @method bool            isCacheable()
- * @method self            setCacheRegion($cacheRegion)
- * @method string|null     getCacheRegion()
- * @method int             getLifetime()
- * @method self            setLifetime($lifetime)
- * @method int             getCacheMode()
- * @method self            setCacheMode($cacheMode)
- * @method int             getType()
- * @method EntityManager   getEntityManager()
- * @method int             getState()
- * @method string          getDQL()
- * @method Query           getQuery()
- * @method string          getRootAlias()
- * @method array           getRootAliases()
- * @method array           getRootEntities()
- * @method ArrayCollection getParameters()
- * @method Parameter|null  getParameter($key)
- * @method self            setFirstResult($firstResult)
- * @method int|null        getFirstResult()
- * @method self            setMaxResults($maxResults)
- * @method int|null        getMaxResults()
- * @method self            add($dqlPartName, $dqlPart, $append = false)
- * @method self            select($select = null)
- * @method self            distinct($flag = true)
- * @method self            addSelect($select = null)
- * @method self            delete($delete = null, $alias = null)
- * @method self            update($update = null, $alias = null)
- * @method self            from($from, $alias, ?string $indexBy = null)
- * @method self            indexBy($alias, $indexBy)
- * @method self            set($key, $value)
- * @method self            where($predicates)
- * @method self            andWhere($expr)
- * @method self            orWhere($expr)
- * @method self            groupBy($groupBy)
- * @method self            addGroupBy($groupBy)
- * @method self            having($having)
- * @method self            andHaving($having)
- * @method self            orHaving($having)
- * @method self            orderBy($sort, $order = null)
- * @method self            addOrderBy($sort, $order = null)
- * @method self            addCriteria(Criteria $criteria)
- * @method mixed           getDQLPart($queryPartName)
- * @method array           getDQLParts()
- * @method self            resetDQLParts($parts = null)
- * @method self            resetDQLPart($part)
+ * @method Expr                 expr()
+ * @method static               setCacheable(bool $cacheable)
+ * @method bool                 isCacheable()
+ * @method static               setCacheRegion(string $cacheRegion)
+ * @method string|null          getCacheRegion()
+ * @method int                  getLifetime()
+ * @method static               setLifetime(int $lifetime)
+ * @method int                  getCacheMode()
+ * @method static               setCacheMode(int $cacheMode)
+ * @method int                  getType()
+ * @method EntityManager        getEntityManager()
+ * @method int                  getState()
+ * @method string               getDQL()
+ * @method Query                getQuery()
+ * @method string               getRootAlias()
+ * @method array                getRootAliases()
+ * @method array                getRootEntities()
+ * @method ArrayCollection      getParameters()
+ * @method Parameter|null       getParameter(int|string $key)
+ * @method static               setFirstResult(int|null $firstResult)
+ * @method int|null             getFirstResult()
+ * @method static               setMaxResults(int|null $maxResults)
+ * @method int|null             getMaxResults()
+ * @method static               add(string $dqlPartName, string|object|array $dqlPart, bool $append = false)
+ * @method static               select(mixed ...$select)
+ * @method static               distinct(bool $flag = true)
+ * @method static               addSelect(mixed ...$select)
+ * @method static               delete(string|null $delete = null, string|null $alias = null)
+ * @method static               update(string|null $update = null, string|null $alias = null)
+ * @method static               from(string $from, string $alias, string|null $indexBy = null)
+ * @method static               indexBy(string $alias, string $indexBy)
+ * @method static               set(string $key, mixed $value)
+ * @method static               where(mixed ...$predicates)
+ * @method static               andWhere(mixed ...$where)
+ * @method static               orWhere(mixed ...$where)
+ * @method static               groupBy(string ...$groupBy)
+ * @method static               addGroupBy(string ...$groupBy)
+ * @method static               having(mixed ...$having)
+ * @method static               andHaving(mixed ...$having)
+ * @method static               orHaving(mixed ...$having)
+ * @method static               orderBy(string|Expr\OrderBy $sort, string|null $order = null)
+ * @method static               addOrderBy(string|Expr\OrderBy $sort, string|null $order = null)
+ * @method static               addCriteria(Criteria $criteria)
+ * @method array<string, mixed> getDQLPart(string $queryPartName)
+ * @method array<string, mixed> getDQLParts()
+ * @method static               resetDQLParts(array|null $parts = null)
+ * @method static               resetDQLPart(string $part)
  */
 class SharedQueryBuilder
 {
@@ -179,27 +180,20 @@ class SharedQueryBuilder
     public function lazyJoin(
         string $join,
         string $alias,
-        ?string $conditionType = null,
-        $condition = null,
-        ?string $indexBy = null
-    ): self {
+        string|null $conditionType = null,
+        string|Expr\Composite|Expr\Comparison|Expr\Func|null $condition = null,
+        string|null $indexBy = null
+    ): static {
         return $this->lazyInnerJoin($join, $alias, $conditionType, $condition, $indexBy);
     }
 
-    /**
-     * @param string|null $condition
-     * @param string      $join
-     * @param string      $alias
-     * @param ?string     $conditionType
-     * @param ?string     $indexBy
-     */
     public function lazyInnerJoin(
         string $join,
         string $alias,
-        ?string $conditionType = null,
-        $condition = null,
-        ?string $indexBy = null
-    ): self {
+        string|null $conditionType = null,
+        string|Expr\Composite|Expr\Comparison|Expr\Func|null $condition = null,
+        string|null $indexBy = null
+    ): static {
         $entityClass = $this->getEntityClassFromFirstJoinStringArgument($join);
         $this->assertHasNotLazyJoinForClass($entityClass);
         $this->lazyJoinRegistry[$entityClass] = [
@@ -210,20 +204,13 @@ class SharedQueryBuilder
         return $this;
     }
 
-    /**
-     * @param string|null $condition
-     * @param string      $join
-     * @param string      $alias
-     * @param ?string     $conditionType
-     * @param ?string     $indexBy
-     */
     public function lazyLeftJoin(
         string $join,
         string $alias,
-        ?string $conditionType = null,
-        $condition = null,
-        ?string $indexBy = null
-    ): self {
+        string|null $conditionType = null,
+        string|Expr\Composite|Expr\Comparison|Expr\Func|null $condition = null,
+        string|null $indexBy = null
+    ): static {
         $entityClass = $this->getEntityClassFromFirstJoinStringArgument($join);
         $this->assertHasNotLazyJoinForClass($entityClass);
         $this->lazyJoinRegistry[$entityClass] = [
@@ -244,10 +231,10 @@ class SharedQueryBuilder
     public function join(
         string $join,
         string $alias,
-        ?string $conditionType = null,
-        $condition = null,
-        ?string $indexBy = null
-    ): self {
+        string|null $conditionType = null,
+        string|Expr\Composite|Expr\Comparison|Expr\Func|null $condition = null,
+        string|null $indexBy = null
+    ): static {
         return $this->innerJoin($join, $alias, $conditionType, $condition, $indexBy);
     }
 
@@ -261,10 +248,10 @@ class SharedQueryBuilder
     public function innerJoin(
         string $join,
         string $alias,
-        ?string $conditionType = null,
-        $condition = null,
-        ?string $indexBy = null
-    ): self {
+        string|null $conditionType = null,
+        string|Expr\Composite|Expr\Comparison|Expr\Func|null $condition = null,
+        string|null $indexBy = null
+    ): static {
         $entityClass = $this->getEntityClassFromFirstJoinStringArgument($join);
         $this->assertHasNotJoinForClass($entityClass);
         $args = \func_get_args();
@@ -288,10 +275,10 @@ class SharedQueryBuilder
     public function leftJoin(
         string $join,
         string $alias,
-        ?string $conditionType = null,
-        $condition = null,
-        ?string $indexBy = null
-    ): self {
+        string|null $conditionType = null,
+        string|Expr\Composite|Expr\Comparison|Expr\Func|null $condition = null,
+        string|null $indexBy = null
+    ): static {
         $entityClass = $this->getEntityClassFromFirstJoinStringArgument($join);
         $this->assertHasNotJoinForClass($entityClass);
         $args = \func_get_args();
@@ -305,6 +292,9 @@ class SharedQueryBuilder
         return $this;
     }
 
+    /**
+     * @param class-string $entityClass
+     */
     public function getAliasForLazyJoinClass(string $entityClass): ?string
     {
         return $this->lazyJoinRegistry[$entityClass][self::ALIAS_ARG_INDEX] ?? null;
@@ -357,6 +347,10 @@ class SharedQueryBuilder
         }
     }
 
+    /**
+     * @return class-string
+     * @param  string       $join
+     */
     protected function getEntityClassFromFirstJoinStringArgument(string $join): string
     {
         $entity = null;
@@ -401,8 +395,17 @@ class SharedQueryBuilder
             throw new LogicException(
                 \sprintf(
                     'Cannot add lazy join to %s because join entity has not been found for "%s".',
-                    self::class,
+                    static::class,
                     $join
+                )
+            );
+        }
+
+        if(!\class_exists($entity)) {
+            throw new LogicException(
+                \sprintf(
+                    'Found string for string join "%s" in %s is expected to be a class-string',
+                    $join, static::class,
                 )
             );
         }
@@ -416,33 +419,39 @@ class SharedQueryBuilder
             throw new DqlErrorException(
                 \sprintf(
                     'You cannot use %s with a %s that has already declared JOINs.',
-                    self::class,
+                    static::class,
                     QueryBuilder::class
                 )
             );
         }
     }
 
+    /**
+     * @param class-string $entityClass
+     */
     private function assertHasNotLazyJoinForClass(string $entityClass): void
     {
         if (isset($this->lazyJoinRegistry[$entityClass])) {
             throw new DqlErrorException(
                 \sprintf(
                     '%s supports only one lazy join per class. %s has already been used.',
-                    self::class,
+                    static::class,
                     $entityClass
                 )
             );
         }
     }
 
+    /**
+     * @param class-string $entityClass
+     */
     private function assertHasNotJoinForClass(string $entityClass): void
     {
         if (isset($this->joinRegistry[$entityClass])) {
             throw new DqlErrorException(
                 \sprintf(
                     '%s supports only one join per class. %s has already been used.',
-                    self::class,
+                    static::class,
                     $entityClass
                 )
             );
@@ -522,13 +531,12 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param int|string      $key   the parameter position or name
-     * @param mixed           $value the parameter value
-     * @param int|string|null $type  PDO::PARAM_* or \Doctrine\DBAL\Types\Type::* constant
+     * @param int|string                                       $key   the parameter position or name
+     * @param mixed                                            $value the parameter value
+     * @param ArrayParameterType|int|ParameterType|string|null $type  ParameterType::*, ArrayParameterType::* or \Doctrine\DBAL\Types\Type::* constant
      */
-    public function withParameter($key, $value, $type = null): string
+    public function withParameter(string|int $key, mixed $value, ParameterType|ArrayParameterType|string|int|null $type = null): string
     {
-        self::assertIntOrString($key);
         $this->setParameter($key, $value, $type);
         /** @var Query\Parameter $param */
         $param = $this->qb->getParameter($key);
@@ -537,13 +545,12 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param int|string      $key   the parameter position or name
-     * @param mixed           $value the parameter value
-     * @param int|string|null $type  PDO::PARAM_* or \Doctrine\DBAL\Types\Type::* constant
+     * @param int|string                                       $key   the parameter position or name
+     * @param mixed                                            $value the parameter value
+     * @param ArrayParameterType|int|ParameterType|string|null $type  ParameterType::*, ArrayParameterType::* or \Doctrine\DBAL\Types\Type::* constant
      */
-    public function withImmutableParameter($key, $value, $type = null): string
+    public function withImmutableParameter(string|int $key, mixed $value, ParameterType|ArrayParameterType|string|int|null $type = null): string
     {
-        self::assertIntOrString($key);
         $this->setImmutableParameter($key, $value, $type);
         /** @var Query\Parameter $param */
         $param = $this->qb->getParameter($key);
@@ -552,24 +559,22 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param int|string      $key   the parameter position or name
-     * @param mixed           $value the parameter value
-     * @param int|string|null $type  PDO::PARAM_* or \Doctrine\DBAL\Types\Type::* constant
+     * @param int|string                                       $key   the parameter position or name
+     * @param mixed                                            $value the parameter value
+     * @param ArrayParameterType|int|ParameterType|string|null $type  ParameterType::*, ArrayParameterType::* or \Doctrine\DBAL\Types\Type::* constant
      */
-    public function withUniqueParameter($key, $value, $type = null): string
+    public function withUniqueParameter(string|int $key, mixed $value, ParameterType|ArrayParameterType|string|int|null $type = null): string
     {
-        self::assertIntOrString($key);
         return $this->withParameter($this->generateUniqueParameterName((string) $key), $value, $type);
     }
 
     /**
-     * @param int|string      $key   the parameter position or name
-     * @param mixed           $value the parameter value
-     * @param int|string|null $type  PDO::PARAM_* or \Doctrine\DBAL\Types\Type::* constant
+     * @param int|string                                       $key   the parameter position or name
+     * @param mixed                                            $value the parameter value
+     * @param ArrayParameterType|int|ParameterType|string|null $type  ParameterType::*, ArrayParameterType::* or \Doctrine\DBAL\Types\Type::* constant
      */
-    public function withUniqueImmutableParameter($key, $value, $type = null): string
+    public function withUniqueImmutableParameter(string|int $key, mixed $value, ParameterType|ArrayParameterType|string|int|null $type = null): string
     {
-        self::assertIntOrString($key);
         return $this->withImmutableParameter($this->generateUniqueParameterName((string) $key), $value, $type);
     }
 
@@ -591,13 +596,12 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param int|string      $key   the parameter position or name
-     * @param mixed           $value the parameter value
-     * @param int|string|null $type  PDO::PARAM_* or \Doctrine\DBAL\Types\Type::* constant
+     * @param int|string                                       $key   the parameter position or name
+     * @param mixed                                            $value the parameter value
+     * @param ArrayParameterType|int|ParameterType|string|null $type  ParameterType::*, ArrayParameterType::* or \Doctrine\DBAL\Types\Type::* constant
      */
-    public function setParameter($key, $value, $type = null): self
+    public function setParameter(string|int $key, mixed $value, ParameterType|ArrayParameterType|string|int|null $type = null): static
     {
-        self::assertIntOrString($key);
         $parameter = $this->qb->getParameter($key);
         if (null !== $parameter && $this->isImmutableParameter($parameter)) {
             throw new CannotOverrideImmutableParameterException($parameter);
@@ -608,13 +612,12 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param int|string      $key   the parameter position or name
-     * @param mixed           $value the parameter value
-     * @param int|string|null $type  PDO::PARAM_* or \Doctrine\DBAL\Types\Type::* constant
+     * @param int|string                                       $key   the parameter position or name
+     * @param mixed                                            $value the parameter value
+     * @param ArrayParameterType|int|ParameterType|string|null $type  ParameterType::*, ArrayParameterType::* or \Doctrine\DBAL\Types\Type::* constant
      */
-    public function setImmutableParameter($key, $value, $type = null): self
+    public function setImmutableParameter(string|int $key, mixed $value, ParameterType|ArrayParameterType|string|int|null $type = null): static
     {
-        self::assertIntOrString($key);
         $parameter = $this->qb->getParameter($key);
         if (null !== $parameter && $this->isImmutableParameter($parameter)) {
             throw new CannotOverrideImmutableParameterException($parameter);
@@ -633,9 +636,9 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param array<int|string, mixed>|ArrayCollection<int, Query\Parameter> $parameters the query parameters to set
+     * @param ArrayCollection<int, Parameter> $parameters
      */
-    public function setParameters($parameters): self
+    public function setParameters(ArrayCollection $parameters): static
     {
         if (! $this->immutableParameters->isEmpty()) {
             throw new CannotOverrideParametersException();
@@ -646,9 +649,9 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param array<int|string, mixed>|ArrayCollection<int, Query\Parameter> $parameters the query parameters to set
+     * @param ArrayCollection<int, Parameter> $parameters
      */
-    public function setImmutableParameters($parameters): self
+    public function setImmutableParameters(ArrayCollection $parameters): static
     {
         if (! $this->immutableParameters->isEmpty()) {
             throw new CannotOverrideParametersException();
@@ -664,9 +667,8 @@ class SharedQueryBuilder
     /**
      * @param int|string $key the parameter position or name
      */
-    public function getImmutableParameter($key): ?Query\Parameter
+    public function getImmutableParameter(int|string $key): ?Query\Parameter
     {
-        self::assertIntOrString($key);
         $param = $this->qb->getParameter($key);
         if (null !== $param && $this->immutableParameters->contains($param)) {
             return $param;
@@ -700,18 +702,6 @@ class SharedQueryBuilder
             return $returnObj === $this->qb ? $this : $returnObj;
         }
         throw new LogicException(sprintf('Undefined method - %s::%s', \get_class($this->qb), $method));
-    }
-
-    /**
-     * @param mixed $value
-     */
-    private static function assertIntOrString($value): void
-    {
-        if (! is_int($value) && ! is_string($value)) {
-            throw new InvalidArgumentException(
-                \sprintf('Value must be string or int, %s given', get_debug_type($value))
-            );
-        }
     }
 
     public function __clone()

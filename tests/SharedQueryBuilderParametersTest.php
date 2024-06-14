@@ -6,7 +6,6 @@ namespace Andante\Doctrine\ORM\Tests;
 
 use Andante\Doctrine\ORM\Exception\CannotOverrideImmutableParameterException;
 use Andante\Doctrine\ORM\Exception\CannotOverrideParametersException;
-use Andante\Doctrine\ORM\Exception\InvalidArgumentException;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\ORM\Query;
 
@@ -35,10 +34,10 @@ class SharedQueryBuilderParametersTest extends TestCase
         $sqb = $this->createSqb();
         $sqb->setParameter('parameter1', 1);
         $sqb->setParameter('parameter2', 2);
-        $sqb->setParameters([
-            'parameter3' => 3,
-            'parameter4' => 4,
-        ]);
+        $sqb->setParameters(new ArrayCollection([
+            new Query\Parameter('parameter3', 3),
+            new Query\Parameter('parameter4', 4),
+        ]));
         self::assertParametersEquals([
             'parameter3' => 3,
             'parameter4' => 4,
@@ -51,10 +50,10 @@ class SharedQueryBuilderParametersTest extends TestCase
         $sqb->setParameter('parameter1', 1);
         $sqb->setImmutableParameter('parameter2', 2);
         $this->expectException(CannotOverrideParametersException::class);
-        $sqb->setParameters([
-            'parameter3' => 3,
-            'parameter4' => 4,
-        ]);
+        $sqb->setParameters(new ArrayCollection([
+            new Query\Parameter('parameter3', 3),
+            new Query\Parameter('parameter4', 4),
+        ]));
     }
 
     public function testCannotOverrideParametersWithImmutableParametersWhenImmutableParametersDefined(): void
@@ -63,19 +62,19 @@ class SharedQueryBuilderParametersTest extends TestCase
         $sqb->setParameter('parameter1', 1);
         $sqb->setImmutableParameter('parameter2', 2);
         $this->expectException(CannotOverrideParametersException::class);
-        $sqb->setImmutableParameters([
-            'parameter3' => 3,
-            'parameter4' => 4,
-        ]);
+        $sqb->setImmutableParameters(new ArrayCollection([
+            new Query\Parameter('parameter3', 3),
+            new Query\Parameter('parameter4', 4),
+        ]));
     }
 
     public function testGetImmutableParameters(): void
     {
         $sqb = $this->createSqb();
-        $sqb->setParameters([
-            'parameter1' => 1,
-            'parameter2' => 2,
-        ]);
+        $sqb->setParameters(new ArrayCollection([
+            new Query\Parameter('parameter1', 1),
+            new Query\Parameter('parameter2', 2),
+        ]));
         $sqb->setImmutableParameter('parameter3', 3);
         $sqb->setImmutableParameter('parameter2', 2);
         self::assertParametersEquals([
@@ -176,14 +175,6 @@ class SharedQueryBuilderParametersTest extends TestCase
         self::assertInstanceOf(Query\Parameter::class, $sqb->getImmutableParameter($parameterName));
         self::assertSame(1, $sqb->getParameter($parameterName)->getValue());
         self::assertSame(1, $sqb->getImmutableParameter($parameterName)->getValue());
-    }
-
-    public function testInvalidParameterNameTypeThrowsException(): void
-    {
-        $sqb = $this->createSqb();
-        $this->expectException(InvalidArgumentException::class);
-        // @phpstan-ignore-next-line
-        $sqb->setParameter(new \stdClass(), 1);
     }
 
     /**
