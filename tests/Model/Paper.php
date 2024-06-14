@@ -21,7 +21,7 @@ class Paper
     private ?string $name = null;
 
     /** @var Collection<int, Employee> */
-    #[ORM\OneToMany(Employee::class, mappedBy: 'papers')]
+    #[ORM\OneToMany(targetEntity: Employee::class, mappedBy: 'papers')]
     private Collection $employees;
 
     #[ORM\ManyToOne(Document::class)]

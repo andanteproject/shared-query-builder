@@ -12,7 +12,7 @@ use Doctrine\ORM\Mapping as ORM;
 class Employee extends Person
 {
     /** @var Collection<int, Paper> */
-    #[ORM\OneToMany(Paper::class, mappedBy: 'employee')]
+    #[ORM\OneToMany(targetEntity: Paper::class, mappedBy: 'employee')]
     private Collection $papers;
 
     public function __construct()
