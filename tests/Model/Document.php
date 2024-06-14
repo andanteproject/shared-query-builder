@@ -15,7 +15,7 @@ class Document
     #[ORM\Column(Types::INTEGER)]
     private ?int $id = null;
 
-    #[ORM\Column(Types::STRING, null, null, null, null, false, true)]
+    #[ORM\Column(Types::STRING, nullable: true)]
     private ?string $name = null;
 
     public function getId(): ?int

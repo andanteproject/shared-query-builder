@@ -24,7 +24,7 @@ class Organization
     #[ORM\ManyToMany(Person::class)]
     private Collection $persons;
 
-    #[ORM\Column(Types::STRING, null, null, null, null, false, true)]
+    #[ORM\Column(Types::STRING, nullable: true)]
     private ?string $name = null;
 
     public function __construct()
