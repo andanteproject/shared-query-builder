@@ -6,7 +6,7 @@
 
 [![Latest Version](https://img.shields.io/github/release/andanteproject/shared-query-builder.svg)](https://github.com/andanteproject/shared-query-builder/releases)
 ![Github actions](https://github.com/andanteproject/shared-query-builder/actions/workflows/workflow.yml/badge.svg?branch=main)
-![Php7](https://img.shields.io/badge/PHP-%207.4|8.x-informational?style=flat&logo=php)
+![Php8](https://img.shields.io/badge/PHP-%208.x-informational?style=flat&logo=php)
 ![PhpStan](https://img.shields.io/badge/PHPStan-Level%208-syccess?style=flat&logo=php)
 
 A Doctrine 2 [Query Builder](https://www.doctrine-project.org/projects/doctrine-orm/en/2.8/reference/query-builder.html)
