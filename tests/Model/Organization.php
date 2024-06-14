@@ -6,34 +6,25 @@ namespace Andante\Doctrine\ORM\Tests\Model;
 
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
+use Doctrine\DBAL\Types\Types;
 use Doctrine\ORM\Mapping as ORM;
 
-/**
- * @ORM\Entity()
- */
+#[ORM\Entity]
 class Organization
 {
-    /**
-     * @ORM\Id()
-     * @ORM\GeneratedValue()
-     * @ORM\Column(type="integer")
-     */
+    #[ORM\Id]
+    #[ORM\GeneratedValue]
+    #[ORM\Column(Types::INTEGER)]
     private ?int $id = null;
 
-    /**
-     * @ORM\ManyToOne(targetEntity="Address")
-     */
+    #[ORM\ManyToOne(Address::class)]
     private ?Address $address = null;
 
-    /**
-     * @var Collection<int, Person>
-     * @ORM\ManyToMany(targetEntity="Person")
-     */
+    /** @var Collection<int, Person> */
+    #[ORM\ManyToMany(Person::class)]
     private Collection $persons;
 
-    /**
-     * @ORM\Column(type="string", nullable=true)
-     */
+    #[ORM\Column(Types::STRING, null, null, null, null, false, true)]
     private ?string $name = null;
 
     public function __construct()

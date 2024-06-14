@@ -8,15 +8,11 @@ use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Collection;
 use Doctrine\ORM\Mapping as ORM;
 
-/**
- * @ORM\Entity()
- */
+#[ORM\Entity]
 class Employee extends Person
 {
-    /**
-     * @var Collection<int, Paper>
-     * @ORM\OneToMany(targetEntity="Paper", mappedBy="employee")
-     */
+    /** @var Collection<int, Paper> */
+    #[ORM\OneToMany('employee', Paper::class)]
     private Collection $papers;
 
     public function __construct()

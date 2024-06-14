@@ -22,7 +22,7 @@ doctrine:
     auto_mapping: true
     mappings:
       fixtures:
-        type: annotation
+        type: attribute
         prefix: 'Andante\Doctrine\ORM\Tests\Model'
         dir: '%kernel.project_dir%/tests/Model/'
         is_bundle: false
