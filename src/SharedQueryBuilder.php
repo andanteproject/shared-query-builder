@@ -401,7 +401,7 @@ class SharedQueryBuilder
             );
         }
 
-        if(!\class_exists($entity) && !\interface_exists($entity)) {
+        if (!\class_exists($entity) && !\interface_exists($entity)) {
             throw new LogicException(
                 \sprintf(
                     'Found string for string join "%s" in %s is expected to be a class-string',
