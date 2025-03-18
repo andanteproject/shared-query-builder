@@ -2,14 +2,14 @@
 
 # Shared Query Builder
 
-#### Doctrine 2 [Query Builder](https://www.doctrine-project.org/projects/doctrine-orm/en/2.8/reference/query-builder.html) decorator - [AndanteProject](https://github.com/andanteproject)
+#### Doctrine 2/3 [Query Builder](https://www.doctrine-project.org/projects/doctrine-orm/en/2.8/reference/query-builder.html) decorator - [AndanteProject](https://github.com/andanteproject)
 
 [![Latest Version](https://img.shields.io/github/release/andanteproject/shared-query-builder.svg)](https://github.com/andanteproject/shared-query-builder/releases)
 ![Github actions](https://github.com/andanteproject/shared-query-builder/actions/workflows/workflow.yml/badge.svg?branch=main)
 ![Php8](https://img.shields.io/badge/PHP-%208.x-informational?style=flat&logo=php)
 ![PhpStan](https://img.shields.io/badge/PHPStan-Level%208-syccess?style=flat&logo=php)
 
-A Doctrine 2 [Query Builder](https://www.doctrine-project.org/projects/doctrine-orm/en/2.8/reference/query-builder.html)
+A Doctrine 2 [Query Builder](https://www.doctrine-project.org/projects/doctrine-orm/en/3.2/reference/query-builder.html)
 decorator that makes easier to build your query in shared contexts.
 
 ## Why do I need this?
@@ -20,13 +20,13 @@ places/classes.
 Without `SharedQueryBuilder` there is no way to do that unless *guessing Entity aliases*  and messing up with *join
 statements*.
 
-This [query builder](https://www.doctrine-project.org/projects/doctrine-orm/en/2.8/reference/query-builder.html)
+This [query builder](https://www.doctrine-project.org/projects/doctrine-orm/en/3.2/reference/query-builder.html)
 decorator addresses some problems you can find in a real world situation you usually solve with workarounds and business
 conventions.
 
 ## Features
 
-- Ask [query builder](https://www.doctrine-project.org/projects/doctrine-orm/en/2.8/reference/query-builder.html)
+- Ask [query builder](https://www.doctrine-project.org/projects/doctrine-orm/en/3.2/reference/query-builder.html)
   which alias is used for an entity when you are outside its creation context;
 - **Lazy joins** to declare join statements to be performed only if related criteria are defined;
 - **Immutable** and **unique** query **parameters**;
@@ -47,7 +47,7 @@ $ composer require andanteproject/shared-query-builder
 ## Set up
 
 After creating
-your [query builder](https://www.doctrine-project.org/projects/doctrine-orm/en/2.8/reference/query-builder.html), wrap
+your [query builder](https://www.doctrine-project.org/projects/doctrine-orm/en/3.2/reference/query-builder.html), wrap
 it inside our `SharedQueryBuilder`.
 
 ```php
@@ -62,7 +62,7 @@ $sqb = SharedQueryBuilder::wrap($qb);
 ```
 
 From now on, you can use `$sqb` exactly as you usually do
-with [query builder](https://www.doctrine-project.org/projects/doctrine-orm/en/2.8/reference/query-builder.html) (every
+with [query builder](https://www.doctrine-project.org/projects/doctrine-orm/en/3.2/reference/query-builder.html) (every
 single method of `QueryBuilder` is available on `SharedQueryBuilder`), **but with some useful extra methods** 🤫.
 
 When you're done building your query, just **unwrap** your `SharedQueryBuilder`.
@@ -161,7 +161,7 @@ or [some examples](#examples) to achieve your "OMG" revelation moment.
 Let's suppose we need to list `User` entities but we also have an **optional filter** to search an user by it's
 address `Building` name.
 
-There is no need to perform any join until we decide to use that filter. We can use **Laxy Join** to achieve this.
+There is no need to perform any join until we decide to use that filter. We can use **Lazy Join** to achieve this.
 
 ```php
 $sqb = SharedQueryBuilder::wrap($userRepository->createQueryBuilder('u'));
