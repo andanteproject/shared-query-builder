@@ -14,7 +14,7 @@ class TestCase extends \PHPUnit\Framework\TestCase
     {
         return new SharedQueryBuilder(
             new QueryBuilder(
-                $this->createStub(EntityManagerInterface::class)
+                self::createStub(EntityManagerInterface::class)
             )
         );
     }
