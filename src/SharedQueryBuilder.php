@@ -174,11 +174,11 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param string                                                    $join
-     * @param string                                                    $alias
-     * @param string|null                                               $conditionType
-     * @param string|Expr\Composite|Expr\Comparison|Expr\Func|null       $condition
-     * @param string|null                                               $indexBy
+     * @param string                                               $join
+     * @param string                                               $alias
+     * @param string|null                                          $conditionType
+     * @param Expr\Comparison|Expr\Composite|Expr\Func|string|null $condition
+     * @param string|null                                          $indexBy
      */
     public function lazyJoin(
         string $join,
@@ -225,11 +225,11 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param string                                                    $join
-     * @param string                                                    $alias
-     * @param string|null                                               $conditionType
-     * @param string|Expr\Composite|Expr\Comparison|Expr\Func|null      $condition
-     * @param string|null                                               $indexBy
+     * @param string                                               $join
+     * @param string                                               $alias
+     * @param string|null                                          $conditionType
+     * @param Expr\Comparison|Expr\Composite|Expr\Func|string|null $condition
+     * @param string|null                                          $indexBy
      */
     public function join(
         string $join,
@@ -242,11 +242,11 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param string                                                    $join
-     * @param string                                                    $alias
-     * @param string|null                                               $conditionType
-     * @param string|Expr\Composite|Expr\Comparison|Expr\Func|null      $condition
-     * @param string|null                                               $indexBy
+     * @param string                                               $join
+     * @param string                                               $alias
+     * @param string|null                                          $conditionType
+     * @param Expr\Comparison|Expr\Composite|Expr\Func|string|null $condition
+     * @param string|null                                          $indexBy
      */
     public function innerJoin(
         string $join,
@@ -269,11 +269,11 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param string                                                    $join
-     * @param string                                                    $alias
-     * @param string|null                                               $conditionType
-     * @param string|Expr\Composite|Expr\Comparison|Expr\Func|null      $condition
-     * @param string|null                                               $indexBy
+     * @param string                                               $join
+     * @param string                                               $alias
+     * @param string|null                                          $conditionType
+     * @param Expr\Comparison|Expr\Composite|Expr\Func|string|null $condition
+     * @param string|null                                          $indexBy
      */
     public function leftJoin(
         string $join,
