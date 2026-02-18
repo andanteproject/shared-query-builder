@@ -30,6 +30,7 @@ conventions.
   which alias is used for an entity when you are outside its creation context;
 - **Lazy joins** to declare join statements to be performed only if related criteria are defined;
 - **Immutable** and **unique** query **parameters**;
+- **Proposals**: collect conditions, joins, parameters (and select/groupBy/orderBy/having) in a temporary object and merge them into the main query by using the proposal in `andWhere` / `orWhere`—ideal for strategies or filters that need to contribute a whole “block” of DQL;
 - Works like magic ✨.
 
 ## Requirements
@@ -155,6 +156,107 @@ added to your DQL query only when you add **another condition/dql part** which r
 
 Based on how confused you are right now, you can check [why you should need this](#why-do-i-need-this)
 or [some examples](#examples) to achieve your "OMG" revelation moment.
+
+### Proposals
+
+When you split query building across multiple strategies or filter classes, you often want each one to contribute a **block** of logic: several conditions, joins, parameters, and maybe select/groupBy/orderBy/having. **Proposals** let you collect that block in a temporary object and “merge” it into the main `SharedQueryBuilder` in one go—by using the proposal inside `andWhere`, `orWhere`, `where`, `andHaving`, or `orHaving`. There is no separate `merge()` call: **merging happens when the proposal is used in one of those methods.**
+
+#### Creating a proposal
+
+Create an empty proposal from the `SharedQueryBuilder`; you can give it a name (useful for debugging) or leave it empty to get a unique auto-generated name.
+
+```php
+// Named proposal
+$proposal = $sqb->createEmptyProposal('building_filter');
+
+// Anonymous proposal (unique name generated automatically)
+$proposal = $sqb->createEmptyProposal();
+```
+
+#### Collect API (no side effects until use)
+
+A proposal exposes the same method names as the SQB for building a **local** set of conditions, joins, parameters, and other parts. Nothing is written to the main query until the proposal is used in an expression.
+
+```php
+$proposal = $sqb->createEmptyProposal('status_filter');
+
+// Conditions
+$proposal->andWhere('u.status = ' . $proposal->withUniqueImmutableParameter('status', 'active'));
+$proposal->orWhere('u.role = ' . $proposal->withUniqueImmutableParameter('role', 'admin'));
+
+// Joins (added to the main SQB only when the proposal is expanded)
+$proposal->innerJoin('u.profile', 'p');
+
+// Optional: select, groupBy, orderBy, having
+$proposal->addSelect('u.id')->addGroupBy('u.id')->addOrderBy('u.createdAt', 'DESC');
+```
+
+- **Parameters**: use only `withUniqueImmutableParameter` on the proposal; on expansion, parameter names are made unique on the main SQB and the condition DQL is updated accordingly.
+- **Nested proposals**: you can add another proposal as a condition: `$proposal->andWhere($nestedProposal)`. When the parent is expanded, nested proposals are expanded recursively.
+
+#### Merging by use
+
+To merge a proposal into the main query, pass it to `andWhere`, `orWhere`, `where`, `andHaving`, or `orHaving`. The SQB will expand the proposal (apply its joins, parameters, select/groupBy/orderBy/having, build the condition, and replace the proposal with the resulting DQL).
+
+```php
+$sqb->select('u')->from(User::class, 'u');
+
+$statusProposal = $sqb->createEmptyProposal('status');
+$statusProposal->andWhere('u.status = ' . $statusProposal->withUniqueImmutableParameter('s', 'active'));
+
+$sqb->andWhere($statusProposal);
+// Now the main query has the proposal’s condition and parameter; its joins/select/etc. would be applied too if we had added any.
+```
+
+You can combine multiple proposals in an OR (or AND) by expanding them first and passing the resulting strings to `expr()->orX()` (or `expr()->andX()`):
+
+```php
+$proposal1 = $sqb->createEmptyProposal('p1');
+$proposal1->andWhere('u.role = ' . $proposal1->withUniqueImmutableParameter('r', 'admin'));
+
+$proposal2 = $sqb->createEmptyProposal('p2');
+$proposal2->andWhere('u.role = ' . $proposal2->withUniqueImmutableParameter('r', 'editor'));
+
+$sqb->andWhere($sqb->expr()->orX(
+    $proposal1->expandInto($sqb),
+    $proposal2->expandInto($sqb)
+));
+// Main query has (condition1 OR condition2) and both parameters.
+```
+
+#### Consumed state and reuse
+
+After a proposal is expanded for the first time, it is marked **consumed**. Using the same proposal again in another `andWhere`/`orWhere` is a no-op: it expands to a neutral `1=1` so the query result is unchanged. Cloning a proposal gives a non-consumed copy with the same collected state.
+
+#### Introspection and clear
+
+- **Introspection**: `hasConditions()`, `hasJoins()`, `hasParameters()`, `isEmpty()`, `isConsumed()`.
+- **Clear**: `clearWhere()`, `clearJoins()`, `clearParameters()`, `clearSelect()`, `clearGroupBy()`, `clearOrderBy()`, `clearHaving()`, `clearAll()`.
+
+#### Example: filter as a proposal
+
+A filter class can build a proposal and the controller merges it in one place:
+
+```php
+// StatusFilter.php
+class StatusFilter implements FilterInterface
+{
+    public function apply(SharedQueryBuilder $sqb, Request $request): void
+    {
+        $status = $request->query->get('status');
+        if ($status === null) {
+            return;
+        }
+        $proposal = $sqb->createEmptyProposal('status_filter');
+        $proposal->andWhere(
+            'u.status = ' . $proposal->withUniqueImmutableParameter('status', $status)
+        );
+        $sqb->andWhere($proposal);
+    }
+}
+```
+
+This keeps the filter responsible only for its own conditions and parameters, and avoids alias or parameter name clashes with other filters.
 
 ## Examples
 

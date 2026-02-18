@@ -8,6 +8,7 @@ use Andante\Doctrine\ORM\Exception\CannotOverrideImmutableParameterException;
 use Andante\Doctrine\ORM\Exception\CannotOverrideParametersException;
 use Andante\Doctrine\ORM\Exception\DqlErrorException;
 use Andante\Doctrine\ORM\Exception\LogicException;
+use Andante\Doctrine\ORM\SharedQueryBuilder\Proposal;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Criteria;
 use Doctrine\DBAL\ArrayParameterType;
@@ -171,6 +172,11 @@ class SharedQueryBuilder
     public function unwrap(): QueryBuilder
     {
         return $this->qb;
+    }
+
+    public function createEmptyProposal(string $name = ''): Proposal
+    {
+        return Proposal::from($this, $name);
     }
 
     /**
@@ -700,6 +706,11 @@ class SharedQueryBuilder
      */
     public function __call(string $method, array $args)
     {
+        $whereHavingMethods = ['where', 'andWhere', 'orWhere', 'andHaving', 'orHaving'];
+        if (\in_array($method, $whereHavingMethods, true)) {
+            $args = \array_map(fn (mixed $arg): string => $this->expandExpressionTree($arg), $args);
+        }
+
         $callable = [$this->qb, $method];
         if (\is_callable($callable)) {
             $returnObj = \call_user_func_array($callable, $args);
@@ -710,6 +721,45 @@ class SharedQueryBuilder
             return $returnObj === $this->qb ? $this : $returnObj;
         }
         throw new LogicException(sprintf('Undefined method - %s::%s', \get_class($this->qb), $method));
+    }
+
+    /**
+     * Recursively expand expression tree: replace Proposal instances with their DQL condition (and apply their joins/params to this SQB).
+     *
+     * @return string DQL condition fragment
+     * @param  mixed  $expr
+     */
+    private function expandExpressionTree(mixed $expr): string
+    {
+        if ($expr instanceof Proposal) {
+            return $expr->expandInto($this);
+        }
+        if ($expr instanceof Expr\Andx) {
+            $parts = $expr->getParts();
+            if (\count($parts) === 0) {
+                return '1=1';
+            }
+
+            return '(' . \implode(' AND ', \array_map(fn (mixed $p): string => $this->expandExpressionTree($p), $parts)) . ')';
+        }
+        if ($expr instanceof Expr\Orx) {
+            $parts = $expr->getParts();
+            if (\count($parts) === 0) {
+                return '1=1';
+            }
+
+            return '(' . \implode(' OR ', \array_map(fn (mixed $p): string => $this->expandExpressionTree($p), $parts)) . ')';
+        }
+        if (\is_object($expr) && \method_exists($expr, '__toString')) {
+            return (string) $expr;
+        }
+        if (\is_string($expr)) {
+            return $expr;
+        }
+
+        throw new LogicException(
+            \sprintf('Cannot expand expression of type %s in %s.', \get_debug_type($expr), self::class)
+        );
     }
 
     public function __clone()
