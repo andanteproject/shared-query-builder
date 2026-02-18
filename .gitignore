@@ -3,6 +3,7 @@
 /var/*.db
 /var/logs/*
 .phpunit.result.cache
+coverage.xml
 composer.lock
 # Managed by Composer
 /app/bootstrap.php.cache
