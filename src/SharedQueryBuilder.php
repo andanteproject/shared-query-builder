@@ -19,6 +19,9 @@ use Doctrine\ORM\Query\Parameter;
 use Doctrine\ORM\QueryBuilder;
 
 /**
+ * Doctrine QueryBuilder decorator for building queries in shared contexts:
+ * entity alias resolution, lazy joins, and immutable/unique parameters.
+ *
  * @method Expr                 expr()
  * @method static               setCacheable(bool $cacheable)
  * @method bool                 isCacheable()
@@ -171,11 +174,11 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param string|null $condition
-     * @param string      $join
-     * @param string      $alias
-     * @param ?string     $conditionType
-     * @param ?string     $indexBy
+     * @param string                                                    $join
+     * @param string                                                    $alias
+     * @param string|null                                               $conditionType
+     * @param string|Expr\Composite|Expr\Comparison|Expr\Func|null       $condition
+     * @param string|null                                               $indexBy
      */
     public function lazyJoin(
         string $join,
@@ -222,11 +225,11 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param string|null $condition
-     * @param string      $join
-     * @param string      $alias
-     * @param ?string     $conditionType
-     * @param ?string     $indexBy
+     * @param string                                                    $join
+     * @param string                                                    $alias
+     * @param string|null                                               $conditionType
+     * @param string|Expr\Composite|Expr\Comparison|Expr\Func|null      $condition
+     * @param string|null                                               $indexBy
      */
     public function join(
         string $join,
@@ -239,11 +242,11 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param string|null $condition
-     * @param string      $join
-     * @param string      $alias
-     * @param ?string     $conditionType
-     * @param ?string     $indexBy
+     * @param string                                                    $join
+     * @param string                                                    $alias
+     * @param string|null                                               $conditionType
+     * @param string|Expr\Composite|Expr\Comparison|Expr\Func|null      $condition
+     * @param string|null                                               $indexBy
      */
     public function innerJoin(
         string $join,
@@ -266,11 +269,11 @@ class SharedQueryBuilder
     }
 
     /**
-     * @param string|null $condition
-     * @param string      $join
-     * @param string      $alias
-     * @param ?string     $conditionType
-     * @param ?string     $indexBy
+     * @param string                                                    $join
+     * @param string                                                    $alias
+     * @param string|null                                               $conditionType
+     * @param string|Expr\Composite|Expr\Comparison|Expr\Func|null      $condition
+     * @param string|null                                               $indexBy
      */
     public function leftJoin(
         string $join,
@@ -348,8 +351,9 @@ class SharedQueryBuilder
     }
 
     /**
+     * @param string $join DQL join path (e.g. "u.address") or entity class name
+     *
      * @return class-string
-     * @param  string       $join
      */
     protected function getEntityClassFromFirstJoinStringArgument(string $join): string
     {
@@ -404,7 +408,7 @@ class SharedQueryBuilder
         if (!\class_exists($entity) && !\interface_exists($entity)) {
             throw new LogicException(
                 \sprintf(
-                    'Found string for string join "%s" in %s is expected to be a class-string',
+                    'The string found for join "%s" in %s is expected to be a class-string',
                     $join, static::class,
                 )
             );
@@ -459,9 +463,10 @@ class SharedQueryBuilder
     }
 
     /**
+     * @param array       $args
+     * @param string|null $excludeAlias
+     *
      * @return array<int, string>
-     * @param  array              $args
-     * @param  ?string            $excludeAlias
      */
     private function getLazyJoinsAliasesInJoinArgs(array $args, ?string $excludeAlias = null): array
     {
@@ -480,8 +485,9 @@ class SharedQueryBuilder
     }
 
     /**
+     * @param string $dql
+     *
      * @return array<int, string>
-     * @param  string             $dql
      */
     private function getLazyJoinsAliasesInDqlString(string $dql): array
     {
@@ -514,8 +520,9 @@ class SharedQueryBuilder
     }
 
     /**
+     * @param bool $includeLazy Whether to include aliases from lazy joins not yet applied
+     *
      * @return array<int, string>
-     * @param  bool               $includeLazy
      */
     public function getAllAliases(bool $includeLazy = false): array
     {
@@ -686,9 +693,10 @@ class SharedQueryBuilder
     }
 
     /**
+     * @param string $method
+     * @param array  $args
+     *
      * @return mixed|self
-     * @param  string     $method
-     * @param  array      $args
      */
     public function __call(string $method, array $args)
     {
