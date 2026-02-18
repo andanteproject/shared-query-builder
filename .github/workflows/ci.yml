@@ -11,8 +11,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        php-version: ['8.2', '8.4', '8.5']
-        symfony-version: ['4.4.*', '5.4.*', '6.4.*', '7.0.*']
+        php-version: ['8.2', '8.4']
+        symfony-version: ['6.4.*', '7.0.*', '8.0.*']
 
     name: PHP ${{ matrix.php-version }} · SF ${{ matrix.symfony-version }}
 
@@ -24,7 +24,7 @@ jobs:
         with:
           php-version: ${{ matrix.php-version }}
           extensions: mbstring, xml, ctype, iconv, intl, json, pdo_sqlite, sqlite3
-          coverage: ${{ matrix.php-version == '8.5' && matrix.symfony-version == '7.0.*' && 'pcov' || 'none' }}
+          coverage: ${{ matrix.php-version == '8.4' && matrix.symfony-version == '8.0.*' && 'pcov' || 'none' }}
 
       - name: Constrain Symfony version
         run: |
@@ -36,11 +36,11 @@ jobs:
           composer-options: "--prefer-dist --no-progress --no-interaction --optimize-autoloader"
 
       - name: Run PHP-CS-Fixer
-        if: matrix.php-version == '8.2' && matrix.symfony-version == '4.4.*'
+        if: matrix.php-version == '8.2' && matrix.symfony-version == '6.4.*'
         run: vendor/bin/php-cs-fixer fix --dry-run --stop-on-violation --using-cache=no
 
       - name: Run PHPStan
-        if: matrix.php-version == '8.5' && matrix.symfony-version == '7.0.*'
+        if: matrix.php-version == '8.4' && matrix.symfony-version == '8.0.*'
         run: vendor/bin/phpstan analyse src tests --configuration=phpstan.neon --memory-limit=1G
 
       - name: Run PHPUnit tests
@@ -48,10 +48,10 @@ jobs:
           DATABASE_URL: "sqlite:///./var/test_database.db"
         run: |
           mkdir -p var
-          vendor/bin/phpunit ${{ matrix.php-version == '8.5' && matrix.symfony-version == '7.0.*' && '--coverage-clover coverage.xml' || '' }}
+          vendor/bin/phpunit ${{ matrix.php-version == '8.4' && matrix.symfony-version == '8.0.*' && '--coverage-clover coverage.xml' || '' }}
 
       - name: Upload coverage to Codecov
-        if: matrix.php-version == '8.5' && matrix.symfony-version == '7.0.*'
+        if: matrix.php-version == '8.4' && matrix.symfony-version == '8.0.*'
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage.xml
