@@ -9,7 +9,7 @@
 ![Php8](https://img.shields.io/badge/PHP-8.x-informational?style=flat&logo=php)
 ![PhpStan](https://img.shields.io/badge/PHPStan-Level%208-success?style=flat&logo=php)
 
-A Doctrine 2 [Query Builder](https://www.doctrine-project.org/projects/doctrine-orm/en/3.2/reference/query-builder.html)
+A Doctrine 2 [Query Builder](https://www.doctrine-project.org/projects/doctrine-orm/en/3.6/reference/query-builder.html)
 decorator that makes it easier to build your query in shared contexts.
 
 ## Why do I need this?
