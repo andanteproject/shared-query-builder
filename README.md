@@ -2,22 +2,22 @@
 
 # Shared Query Builder
 
-#### Doctrine 2/3 [Query Builder](https://www.doctrine-project.org/projects/doctrine-orm/en/2.8/reference/query-builder.html) decorator - [AndanteProject](https://github.com/andanteproject)
+#### Doctrine 2/3 [Query Builder](https://www.doctrine-project.org/projects/doctrine-orm/en/3.6/reference/query-builder.html) decorator - [AndanteProject](https://github.com/andanteproject)
 
 [![Latest Version](https://img.shields.io/github/release/andanteproject/shared-query-builder.svg)](https://github.com/andanteproject/shared-query-builder/releases)
-![Github actions](https://github.com/andanteproject/shared-query-builder/actions/workflows/workflow.yml/badge.svg?branch=main)
-![Php8](https://img.shields.io/badge/PHP-%208.x-informational?style=flat&logo=php)
-![PhpStan](https://img.shields.io/badge/PHPStan-Level%208-syccess?style=flat&logo=php)
+![Github actions](https://github.com/andanteproject/shared-query-builder/actions/workflows/ci.yml/badge.svg?branch=main)
+![Php8](https://img.shields.io/badge/PHP-8.x-informational?style=flat&logo=php)
+![PhpStan](https://img.shields.io/badge/PHPStan-Level%208-success?style=flat&logo=php)
 
 A Doctrine 2 [Query Builder](https://www.doctrine-project.org/projects/doctrine-orm/en/3.2/reference/query-builder.html)
-decorator that makes easier to build your query in shared contexts.
+decorator that makes it easier to build your query in shared contexts.
 
 ## Why do I need this?
 
 When your query business logic is big and complex you are probably going to split its building process to different
 places/classes.
 
-Without `SharedQueryBuilder` there is no way to do that unless *guessing Entity aliases*  and messing up with *join
+Without `SharedQueryBuilder` there is no way to do that unless *guessing Entity aliases* and messing with *join
 statements*.
 
 This [query builder](https://www.doctrine-project.org/projects/doctrine-orm/en/3.2/reference/query-builder.html)
@@ -34,7 +34,7 @@ conventions.
 
 ## Requirements
 
-Doctrine 2 and PHP 7.4.
+Doctrine 3 and PHP 8.0 or higher.
 
 ## Install
 
@@ -75,10 +75,10 @@ $qb = $sqb->unwrap();
 
 #### Please note:
 
-- The only condition applied to build a `SharedQueryBuilder` is that no join statement has to be declared yet.
+- The only condition applied to build a `SharedQueryBuilder` is that no join statements may be declared yet.
 - `SharedQueryBuilder` is *a decorator* of `QueryBuilder`, which means it is not an `instance of QueryBuilder` even if
   it has all its methods (sadly, Doctrine has no QueryBuilder Interface 🥺).
-- `SharedQueryBuilder` do not allow you to join an Entity multiple times with different aliases.
+- `SharedQueryBuilder` does not allow you to join an Entity multiple times with different aliases.
 
 ## Which additional methods do I have?
 
@@ -124,15 +124,15 @@ $entityClass = $sqb->getEntityForAlias('u'); // string 'App\Entity\User' returne
 ```
 
 `QueryBuilder::getAllAliases` is extended to have an optional `bool` argument `$includeLazy` (default:`false`) to
-include [lazy joins](#lazy-join) aliases.
+include [lazy joins](#lazy-joins) aliases.
 
 ```php
 $allAliases = $sqb->getAllAliases(true);
 ```
 
-### Lazy Join
+### Lazy joins
 
-All query builder `join` methods can be used as usually, but you can also use them with "`lazy`" prefix.
+All query builder `join` methods can be used as usual, but you can also use them with "`lazy`" prefix.
 
 ```php
 // Common join methods
@@ -145,7 +145,7 @@ $sqb->lazyJoin(/* args */);
 $sqb->lazyInnerJoin(/* args */);
 $sqb->lazyLeftJoin(/* args */);
 
-// They works with all the ways you know you can perform joins in Doctrine
+// They work with all the ways you know you can perform joins in Doctrine
 // A: $sqb->lazyJoin('u.address', 'a') 
 // or B: $sqb->lazyJoin('Address::class', 'a', Expr\Join::WITH, $sqb->expr()->eq('u.address','a')) 
 ```
@@ -153,12 +153,12 @@ $sqb->lazyLeftJoin(/* args */);
 By doing this, you are defining a `join` statement **without actually adding it** to your DQL query. It is going to be
 added to your DQL query only when you add **another condition/dql part** which refers to it. Automagically ✨.
 
-Based on how much confused you are right now, you can check for [why you should need this](#why-do-i-need-this)
+Based on how confused you are right now, you can check [why you should need this](#why-do-i-need-this)
 or [some examples](#examples) to achieve your "OMG" revelation moment.
 
 ## Examples
 
-Let's suppose we need to list `User` entities but we also have an **optional filter** to search an user by it's
+Let's suppose we need to list `User` entities but we also have an **optional filter** to search a user by their
 address `Building` name.
 
 There is no need to perform any join until we decide to use that filter. We can use **Lazy Join** to achieve this.
@@ -175,10 +175,10 @@ $sqb
     ->setParameter('verified_email', true)
 ;
 
-$users = $sqb->getQuery()->getResults();
+$users = $sqb->getQuery()->getResult();
 // DQL executed:
 //     SELECT u
-//     FROM App\entity\User
+//     FROM App\Entity\User
 //     WHERE u.verifiedEmail = true
 
 // BUT if we use the same Query Builder to filter by building.name:
@@ -189,10 +189,10 @@ $sqb
     )
     ->setParameter('name_value', $buildingNameFilter)
 ;
-$users = $sqb->getQuery()->getResults();
+$users = $sqb->getQuery()->getResult();
 // DQL executed:
 //     SELECT u
-//     FROM App\entity\User
+//     FROM App\Entity\User
 //       JOIN u.address a
 //       JOIN a.building b
 //     WHERE u.verifiedEmail = true
@@ -200,7 +200,7 @@ $users = $sqb->getQuery()->getResults();
 ```
 
 You are probably thinking: **why don't we achieve the same result with the following, more common, way**? (keep in mind
-that avoid to perform unecessary joins is still a requirement)
+that avoiding unnecessary joins is still a requirement)
 
 ```php
 // How you could achieve this without SharedQueryBuilder
@@ -223,7 +223,7 @@ if(!empty($buildingNameFilter)){
     ;
 }
 
-$users = $qb->getQuery()->getResults(); // Same result as example shown before
+$users = $qb->getQuery()->getResult(); // Same result as example shown before
 // But this has some down sides further explained
 ```
 
@@ -237,7 +237,7 @@ The code above is perfectly fine if you build this whole query in the **same con
 But you have problems:
 
 - 👎 You are mixing query structure definition with optional filtering criteria.
-- 👎 Code is is quickly going to be an unreadable mess.
+- 👎 Code is quickly going to be an unreadable mess.
 
 ### A real world case
 
@@ -262,7 +262,7 @@ class UserController extends Controller
         
         // Now Apply some optional filters from Request
         // Let's suppose we have an "applyFilters" method which is giving QueryBuilder and Request
-        // to and array of classes responsable to take care of filtering query results.  
+        // to an array of classes responsible for filtering query results.  
         $this->applyFilters($qb, $request);
         
         // Maybe have some pagination logic here too. Check KnpLabs/knp-components which is perfect for this.
@@ -299,7 +299,7 @@ class BuildingNameFilter implements FilterInterface
 **We are committing some multiple sins here! 💀 The context is changed.**
 
 - 👎 You are *not aware* of the whole query building process. Is the given QueryBuilder even a query on User entity?;
-- 👎 You are *not aware* of which entities are involved. Which entities are already been joined?;
+- 👎 You are *not aware* of which entities are involved. Which entities have already been joined?;
 - 👎 You are *not aware* of which aliases are defined for each entity. No way we are calling `u.address` by convention
   🤨;
 - 👎 You are *aware* of what parameters have been defined (`$qb->getParameters()`), but you are *not aware* why they
@@ -307,7 +307,7 @@ class BuildingNameFilter implements FilterInterface
 - 👎 Our job in this context is just to apply some filter. We *can* change the query by adding some join statements but
   we *should avoid* that. What if another filter also need to perform those joins? Devastating. 😵
 
-#### This's why SharedQueryBuilder is going to save your ass in these situations
+#### That's why SharedQueryBuilder is going to save your ass in these situations
 
 Let's see how we can solve all these problems with `SharedQueryBuilder` (you can now guess why it is named like this).
 
@@ -337,14 +337,14 @@ class UserController extends Controller
         
         // Now Apply some optional filters from Request
         // Let's suppose we have an "applyFilters" method which is giving QueryBuilder and Request
-        // to and array of classes responsable to take care of filtering query results.  
+        // to an array of classes responsible for filtering query results.  
         $this->applyFilters($sqb, $request);
         
         // Maybe have some pagination logic here too.
         // You probably need to unwrap the Query Builder now for this
         $qb = $sqb->unwrap();
         
-        $users = $qb->getQuery()->getResults();
+        $users = $qb->getQuery()->getResult();
         // Build our response with User entities list.
     }
 }
@@ -386,7 +386,7 @@ class BuildingNameFilter implements FilterInterface
 
 #### Immutable Parameters
 
-Shared query builder has **Immutable Parameters**. Once defined, they cannot be changed otherwise and *Exception* will
+Shared query builder has **Immutable Parameters**. Once defined, they cannot be changed; otherwise an *Exception* will
 be raised.
 
 ```php
@@ -395,7 +395,7 @@ be raised.
 // set a common Query Builder parameter, as you are used to 
 $sqb->setParameter('parameter_name', 'parameterValue');
 
-// set an immutable common Query Builder parameter. It cannot be changed otherwise an exception will be raised.
+// set an immutable Query Builder parameter. It cannot be changed; otherwise an exception will be raised.
 $sqb->setImmutableParameter('immutable_parameter_name', 'parameterValue');
 
 // get a collection of all query parameters (commons + immutables!)
