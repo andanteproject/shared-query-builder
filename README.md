@@ -12,6 +12,31 @@
 A Doctrine 2 [Query Builder](https://www.doctrine-project.org/projects/doctrine-orm/en/3.6/reference/query-builder.html)
 decorator that makes it easier to build your query in shared contexts.
 
+## Table of contents
+
+- [Why do I need this?](#why-do-i-need-this)
+- [Features](#features)
+- [Requirements](#requirements)
+- [Install](#install)
+- [Set up](#set-up)
+- [Which additional methods do I have?](#which-additional-methods-do-i-have)
+  - [Entity methods](#entity-methods)
+  - [Lazy joins](#lazy-joins)
+  - [Proposals](#proposals)
+    - [Creating a proposal](#creating-a-proposal)
+    - [Collect API (no side effects until use)](#collect-api-no-side-effects-until-use)
+    - [Merging by use](#merging-by-use)
+    - [Consumed state and reuse](#consumed-state-and-reuse)
+    - [Introspection and clear](#introspection-and-clear)
+    - [Example: filter as a proposal](#example-filter-as-a-proposal)
+- [Examples](#examples)
+  - [A real world case](#a-real-world-case)
+  - [That's why SharedQueryBuilder is going to save your ass in these situations](#thats-why-sharedquerybuilder-is-going-to-save-your-ass-in-these-situations)
+  - [Immutable Parameters](#immutable-parameters)
+  - [Set parameter and use it in expression at the same moment](#set-parameter-and-use-it-in-expression-at-the-same-moment)
+  - [Unique parameters](#unique-parameters)
+  - [Conclusion](#conclusion)
+
 ## Why do I need this?
 
 When your query business logic is big and complex you are probably going to split its building process to different
