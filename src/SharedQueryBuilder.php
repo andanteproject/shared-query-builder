@@ -8,6 +8,9 @@ use Andante\Doctrine\ORM\Exception\CannotOverrideImmutableParameterException;
 use Andante\Doctrine\ORM\Exception\CannotOverrideParametersException;
 use Andante\Doctrine\ORM\Exception\DqlErrorException;
 use Andante\Doctrine\ORM\Exception\LogicException;
+use Andante\Doctrine\ORM\SharedQueryBuilder\Expr as SQBExpr;
+use Andante\Doctrine\ORM\SharedQueryBuilder\Expression\Andx as ProposalAndx;
+use Andante\Doctrine\ORM\SharedQueryBuilder\Expression\Orx as ProposalOrx;
 use Andante\Doctrine\ORM\SharedQueryBuilder\Proposal;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\Common\Collections\Criteria;
@@ -23,7 +26,7 @@ use Doctrine\ORM\QueryBuilder;
  * Doctrine QueryBuilder decorator for building queries in shared contexts:
  * entity alias resolution, lazy joins, and immutable/unique parameters.
  *
- * @method Expr                 expr()
+ * @method SQBExpr              expr()
  * @method static               setCacheable(bool $cacheable)
  * @method bool                 isCacheable()
  * @method static               setCacheRegion(string $cacheRegion)
@@ -177,6 +180,15 @@ class SharedQueryBuilder
     public function createEmptyProposal(string $name = ''): Proposal
     {
         return Proposal::from($this, $name);
+    }
+
+    /**
+     * Expression builder. orX() and andX() accept Proposal instances so you can pass proposals
+     * directly without calling expandInto(); they are expanded when used in andWhere/orWhere.
+     */
+    public function expr(): SQBExpr
+    {
+        return new SQBExpr($this->qb->expr());
     }
 
     /**
@@ -706,6 +718,9 @@ class SharedQueryBuilder
      */
     public function __call(string $method, array $args)
     {
+        if ($method === 'expr') {
+            return $this->expr();
+        }
         $whereHavingMethods = ['where', 'andWhere', 'orWhere', 'andHaving', 'orHaving'];
         if (\in_array($method, $whereHavingMethods, true)) {
             $args = \array_map(fn (mixed $arg): string => $this->expandExpressionTree($arg), $args);
@@ -733,6 +748,40 @@ class SharedQueryBuilder
     {
         if ($expr instanceof Proposal) {
             return $expr->expandInto($this);
+        }
+        if ($expr instanceof ProposalOrx) {
+            $parts = $expr->getParts();
+            if (\count($parts) === 0) {
+                return '1=1';
+            }
+
+            return '(' . \implode(' OR ', \array_map(fn (mixed $p): string => $this->expandExpressionTree($p), $parts)) . ')';
+        }
+        if ($expr instanceof ProposalAndx) {
+            $parts = $expr->getParts();
+            if (\count($parts) === 0) {
+                return '1=1';
+            }
+
+            return '(' . \implode(' AND ', \array_map(fn (mixed $p): string => $this->expandExpressionTree($p), $parts)) . ')';
+        }
+        if ($expr instanceof Expr\Func) {
+            $args = $expr->getArguments();
+            $expanded = \array_map(fn (mixed $a): string => $this->expandExpressionTree($a), $args);
+
+            return $expr->getName() . '(' . \implode(', ', $expanded) . ')';
+        }
+        if ($expr instanceof Expr\Comparison) {
+            $left = $this->expandExpressionTree($expr->getLeftExpr());
+            $right = $this->expandExpressionTree($expr->getRightExpr());
+
+            return $left . ' ' . $expr->getOperator() . ' ' . $right;
+        }
+        if ($expr instanceof Expr\Math) {
+            $left = $this->expandExpressionTree($expr->getLeftExpr());
+            $right = $this->expandExpressionTree($expr->getRightExpr());
+
+            return $left . ' ' . $expr->getOperator() . ' ' . $right;
         }
         if ($expr instanceof Expr\Andx) {
             $parts = $expr->getParts();

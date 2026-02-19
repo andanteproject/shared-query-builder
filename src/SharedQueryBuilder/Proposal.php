@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Andante\Doctrine\ORM\SharedQueryBuilder;
 
 use Andante\Doctrine\ORM\SharedQueryBuilder as SQB;
+use Andante\Doctrine\ORM\SharedQueryBuilder\Expr as SQBExpr;
 use Doctrine\Common\Collections\ArrayCollection;
 use Doctrine\DBAL\ArrayParameterType;
 use Doctrine\DBAL\ParameterType;
@@ -77,7 +78,7 @@ class Proposal
 
     // ---- Read-only delegation to SQB ----
 
-    public function expr(): Expr
+    public function expr(): SQBExpr
     {
         return $this->sqb->expr();
     }

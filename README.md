@@ -32,6 +32,7 @@ decorator that makes it easier to build your query in shared contexts.
 - [Examples](#examples)
   - [A real world case](#a-real-world-case)
   - [That's why SharedQueryBuilder is going to save your ass in these situations](#thats-why-sharedquerybuilder-is-going-to-save-your-ass-in-these-situations)
+  - [Evolution: filters that receive and return a Proposal](#evolution-filters-that-receive-and-return-a-proposal)
   - [Immutable Parameters](#immutable-parameters)
   - [Set parameter and use it in expression at the same moment](#set-parameter-and-use-it-in-expression-at-the-same-moment)
   - [Unique parameters](#unique-parameters)
@@ -200,20 +201,32 @@ $proposal = $sqb->createEmptyProposal();
 
 #### Collect API (no side effects until use)
 
-A proposal exposes the same method names as the SQB for building a **local** set of conditions, joins, parameters, and other parts. Nothing is written to the main query until the proposal is used in an expression.
+A proposal exposes the same method names as the SQB for building a **local** set of conditions, joins, parameters, and other parts. Nothing is written to the main query until the proposal is used in an expression. Build conditions with the proposal’s `expr()` (e.g. `eq`, `neq`, `andX`, `orX`) so they stay object-oriented. **Never hardcode entity aliases**—use the SQB’s `withAlias(Entity::class, 'property')` (or the proposal’s, which delegates to the SQB) so the library resolves the correct alias.
 
 ```php
 $proposal = $sqb->createEmptyProposal('status_filter');
 
-// Conditions
-$proposal->andWhere('u.status = ' . $proposal->withUniqueImmutableParameter('status', 'active'));
-$proposal->orWhere('u.role = ' . $proposal->withUniqueImmutableParameter('role', 'admin'));
+// Conditions: use withAlias() so the SQB resolves the entity alias (e.g. User → 'u')
+$proposal->andWhere(
+    $proposal->expr()->eq(
+        $proposal->withAlias(User::class, 'status'),
+        $proposal->withUniqueImmutableParameter(':status', 'active')
+    )
+);
+$proposal->orWhere(
+    $proposal->expr()->eq(
+        $proposal->withAlias(User::class, 'role'),
+        $proposal->withUniqueImmutableParameter(':role', 'admin')
+    )
+);
 
-// Joins (added to the main SQB only when the proposal is expanded)
-$proposal->innerJoin('u.profile', 'p');
+// Joins: use withAlias() for the association path
+$proposal->innerJoin($proposal->withAlias(User::class, 'profile'), 'p');
 
-// Optional: select, groupBy, orderBy, having
-$proposal->addSelect('u.id')->addGroupBy('u.id')->addOrderBy('u.createdAt', 'DESC');
+// Optional: select, groupBy, orderBy, having (withAlias for each path)
+$proposal->addSelect($proposal->withAlias(User::class, 'id'))
+    ->addGroupBy($proposal->withAlias(User::class, 'id'))
+    ->addOrderBy($proposal->withAlias(User::class, 'createdAt'), 'DESC');
 ```
 
 - **Parameters**: use only `withUniqueImmutableParameter` on the proposal; on expansion, parameter names are made unique on the main SQB and the condition DQL is updated accordingly.
@@ -227,25 +240,37 @@ To merge a proposal into the main query, pass it to `andWhere`, `orWhere`, `wher
 $sqb->select('u')->from(User::class, 'u');
 
 $statusProposal = $sqb->createEmptyProposal('status');
-$statusProposal->andWhere('u.status = ' . $statusProposal->withUniqueImmutableParameter('s', 'active'));
+$statusProposal->andWhere(
+    $statusProposal->expr()->eq(
+        $statusProposal->withAlias(User::class, 'status'),
+        $statusProposal->withUniqueImmutableParameter(':status', 'active')
+    )
+);
 
 $sqb->andWhere($statusProposal);
 // Now the main query has the proposal’s condition and parameter; its joins/select/etc. would be applied too if we had added any.
 ```
 
-You can combine multiple proposals in an OR (or AND) by expanding them first and passing the resulting strings to `expr()->orX()` (or `expr()->andX()`):
+You can combine multiple proposals in an OR (or AND) by passing the proposals directly to `expr()->orX()` (or `expr()->andX()`). The SQB expands them when building the where clause; you do not need to call `expandInto()`.
 
 ```php
 $proposal1 = $sqb->createEmptyProposal('p1');
-$proposal1->andWhere('u.role = ' . $proposal1->withUniqueImmutableParameter('r', 'admin'));
+$proposal1->andWhere(
+    $proposal1->expr()->eq(
+        $proposal1->withAlias(User::class, 'role'),
+        $proposal1->withUniqueImmutableParameter(':role', 'admin')
+    )
+);
 
 $proposal2 = $sqb->createEmptyProposal('p2');
-$proposal2->andWhere('u.role = ' . $proposal2->withUniqueImmutableParameter('r', 'editor'));
+$proposal2->andWhere(
+    $proposal2->expr()->eq(
+        $proposal2->withAlias(User::class, 'role'),
+        $proposal2->withUniqueImmutableParameter(':role', 'editor')
+    )
+);
 
-$sqb->andWhere($sqb->expr()->orX(
-    $proposal1->expandInto($sqb),
-    $proposal2->expandInto($sqb)
-));
+$sqb->andWhere($sqb->expr()->orX($proposal1, $proposal2));
 // Main query has (condition1 OR condition2) and both parameters.
 ```
 
@@ -258,30 +283,45 @@ After a proposal is expanded for the first time, it is marked **consumed**. Usin
 - **Introspection**: `hasConditions()`, `hasJoins()`, `hasParameters()`, `isEmpty()`, `isConsumed()`.
 - **Clear**: `clearWhere()`, `clearJoins()`, `clearParameters()`, `clearSelect()`, `clearGroupBy()`, `clearOrderBy()`, `clearHaving()`, `clearAll()`.
 
-#### Example: filter as a proposal
+#### Example: filter receives a proposal, fills it, returns it; merge at upper level
 
-A filter class can build a proposal and the controller merges it in one place:
+The **caller** (e.g. controller) creates an empty proposal and passes it to the filter. The filter **receives** the request and that proposal; it fills the proposal using the proposal’s methods (e.g. `withAlias(Entity::class, 'property')`, which delegates to the SQB) so aliases are never hardcoded, then **returns** the same proposal. The caller is responsible for merging the proposal into the query. That way the filter only builds its block of logic; where and how it is combined (e.g. `andWhere` vs `orWhere`) stays at the upper level.
 
 ```php
 // StatusFilter.php
+use Andante\Doctrine\ORM\SharedQueryBuilder\Proposal;
+use Symfony\Component\HttpFoundation\Request;
+
 class StatusFilter implements FilterInterface
 {
-    public function apply(SharedQueryBuilder $sqb, Request $request): void
+    public function buildProposal(Request $request, Proposal $proposal): Proposal
     {
         $status = $request->query->get('status');
         if ($status === null) {
-            return;
+            return $proposal;
         }
-        $proposal = $sqb->createEmptyProposal('status_filter');
         $proposal->andWhere(
-            'u.status = ' . $proposal->withUniqueImmutableParameter('status', $status)
+            $proposal->expr()->eq(
+                $proposal->withAlias(User::class, 'status'),
+                $proposal->withUniqueImmutableParameter(':status', $status)
+            )
         );
-        $sqb->andWhere($proposal);
+        return $proposal;
     }
 }
 ```
 
-This keeps the filter responsible only for its own conditions and parameters, and avoids alias or parameter name clashes with other filters.
+```php
+// UserController.php (upper level: create proposal, pass to filter, merge here)
+$statusFilter = new StatusFilter();
+$proposal = $sqb->createEmptyProposal('status_filter');
+$statusFilter->buildProposal($request, $proposal);
+if ($proposal->hasConditions()) {
+    $sqb->andWhere($proposal);
+}
+```
+
+This keeps the filter responsible only for building its conditions and parameters (using `withAlias` so the library resolves entity aliases); the caller decides how to merge and avoids alias or parameter name clashes between filters.
 
 ## Examples
 
@@ -293,11 +333,11 @@ There is no need to perform any join until we decide to use that filter. We can 
 ```php
 $sqb = SharedQueryBuilder::wrap($userRepository->createQueryBuilder('u'));
 $sqb
-    ->lazyJoin('u.address', 'a')
-    ->lazyJoin('a.building', 'b')
-    //Let's add a WHERE condition that do not need our lazy joins 
+    ->lazyJoin($sqb->withAlias(User::class, 'address'), 'a')
+    ->lazyJoin($sqb->withAlias(Address::class, 'building'), 'b')
+    // Let's add a WHERE condition that do not need our lazy joins
     ->andWhere(
-        $sqb->expr()->eq('u.verifiedEmail', ':verified_email')
+        $sqb->expr()->eq($sqb->withAlias(User::class, 'verifiedEmail'), ':verified_email')
     )
     ->setParameter('verified_email', true)
 ;
@@ -312,7 +352,7 @@ $users = $sqb->getQuery()->getResult();
 $buildingNameFilter = 'Building A';
 $sqb
     ->andWhere(
-        $sqb->expr()->eq('b.name', ':name_value')
+        $sqb->expr()->eq($sqb->withAlias(Building::class, 'name'), ':name_value')
     )
     ->setParameter('name_value', $buildingNameFilter)
 ;
@@ -457,9 +497,9 @@ class UserController extends Controller
         $sqb = SharedQueryBuilder::wrap($userRepository->createQueryBuilder('u'));
         $sqb
             // Please note: Sure, you can mix "normal" join methods and "lazy" join methods
-            ->lazyJoin('u.address', 'a')
-            ->lazyJoin('a.building', 'b')
-            ->andWhere($sqb->expr()->eq('u.verifiedEmail', ':verified_email'))
+            ->lazyJoin($sqb->withAlias(User::class, 'address'), 'a')
+            ->lazyJoin($sqb->withAlias(Address::class, 'building'), 'b')
+            ->andWhere($sqb->expr()->eq($sqb->withAlias(User::class, 'verifiedEmail'), ':verified_email'))
             ->setImmutableParameter('verified_email', true);
         
         // Now Apply some optional filters from Request
@@ -501,6 +541,68 @@ class BuildingNameFilter implements FilterInterface
         }
     }
 }
+```
+
+- 👍 No extra join statements executed when there is no need for them;
+
+#### Evolution: filters that receive and return a Proposal
+
+You can go one step further: have each filter **receive an empty Proposal** (created by the caller), fill it using `withAlias()` and the proposal’s `expr()`, and **return** that proposal. The controller then merges each proposal (e.g. with `andWhere`) at the upper level. That keeps the same benefits (no hardcoded aliases, merge logic in one place) and makes each filter a pure “block builder” that never touches the SQB’s where clause directly.
+
+**Step 1: BuildingNameFilter receives and returns a Proposal**
+
+```php
+// BuildingNameFilter.php
+use Andante\Doctrine\ORM\SharedQueryBuilder\Proposal;
+use Symfony\Component\HttpFoundation\Request;
+
+class BuildingNameFilter implements FilterInterface
+{
+    public function buildProposal(Request $request, Proposal $proposal): Proposal
+    {
+        $buildingName = $request->query->get('building-name');
+        if ($buildingName === null || $buildingName === '' || !$proposal->hasEntity(Building::class)) {
+            return $proposal;
+        }
+        $proposal->andWhere(
+            $proposal->expr()->eq(
+                $proposal->withAlias(Building::class, 'name'),
+                $proposal->withUniqueImmutableParameter(':building_name', $buildingName)
+            )
+        );
+        return $proposal;
+    }
+}
+```
+
+**Step 2: Controller creates proposals, passes them to both filters, merges at upper level**
+
+```php
+// UserController.php
+use Andante\Doctrine\ORM\SharedQueryBuilder;
+use Andante\Doctrine\ORM\SharedQueryBuilder\Proposal;
+
+$sqb = SharedQueryBuilder::wrap($userRepository->createQueryBuilder('u'));
+$sqb
+    ->lazyJoin($sqb->withAlias(User::class, 'address'), 'a')
+    ->lazyJoin($sqb->withAlias(Address::class, 'building'), 'b')
+    ->andWhere($sqb->expr()->eq($sqb->withAlias(User::class, 'verifiedEmail'), ':verified_email'))
+    ->setImmutableParameter('verified_email', true);
+
+// Each filter receives an empty proposal, fills it, returns it; we merge here
+$statusProposal = $sqb->createEmptyProposal('status_filter');
+(new StatusFilter())->buildProposal($request, $statusProposal);
+if ($statusProposal->hasConditions()) {
+    $sqb->andWhere($statusProposal);
+}
+
+$buildingNameProposal = $sqb->createEmptyProposal('building_name_filter');
+(new BuildingNameFilter())->buildProposal($request, $buildingNameProposal);
+if ($buildingNameProposal->hasConditions()) {
+    $sqb->andWhere($buildingNameProposal);
+}
+
+$users = $sqb->unwrap()->getQuery()->getResult();
 ```
 
 - 👍 No extra join statements executed when there is no need for them;

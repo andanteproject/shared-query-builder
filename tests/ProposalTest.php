@@ -6,7 +6,6 @@ namespace Andante\Doctrine\ORM\Tests;
 
 use Andante\Doctrine\ORM\SharedQueryBuilder\Proposal;
 use Doctrine\Common\Collections\ArrayCollection;
-use Doctrine\ORM\Query\Expr\Orx;
 use Doctrine\ORM\Query\Parameter as QueryParameter;
 
 class ProposalTest extends TestCase
@@ -215,9 +214,8 @@ class ProposalTest extends TestCase
     }
 
     /**
-     * Two proposals combined with OR: both conditions and all parameters from both proposals
-     * must be added to the SQB when expanded. We build Orx explicitly so expansion is exercised
-     * regardless of the test double's expr() behaviour.
+     * Two proposals combined with OR via expr()->orX($proposal1, $proposal2): no need to call expandInto();
+     * both conditions and all parameters from both proposals must be added to the SQB when expanded.
      */
     public function testTwoProposalsInOrBothConditionsAndParametersAddedToSqb(): void
     {
@@ -232,9 +230,7 @@ class ProposalTest extends TestCase
         $ph2 = $proposal2->withUniqueImmutableParameter('role', 'admin');
         $proposal2->andWhere('u.role = ' . $ph2);
 
-        $condition1 = $proposal1->expandInto($sqb);
-        $condition2 = $proposal2->expandInto($sqb);
-        $sqb->andWhere(new Orx([$condition1, $condition2]));
+        $sqb->andWhere($sqb->expr()->orX($proposal1, $proposal2));
 
         $dql = $sqb->getDQL();
         self::assertStringContainsString('u.status =', $dql);
@@ -320,5 +316,92 @@ class ProposalTest extends TestCase
         self::assertStringContainsString('ORDER BY', $dql);
         self::assertStringContainsString('u.id > 0', $dql);
         self::assertStringContainsString('DESC', $dql);
+    }
+
+    /**
+     * Proposal nested inside NOT() is expanded so the DQL contains NOT(condition) and the proposal's parameters.
+     * We build NOT(proposal) with Doctrine's Expr so the test does not depend on the stub EM's expr().
+     */
+    public function testProposalInsideExprNotIsExpanded(): void
+    {
+        $sqb = $this->createSqb();
+        $sqb->select('u')->from(\stdClass::class, 'u');
+        $proposal = $sqb->createEmptyProposal('p');
+        $ph = $proposal->withUniqueImmutableParameter(':status', 1);
+        $proposal->andWhere('u.status = ' . $ph);
+        $notExpr = (new \Doctrine\ORM\Query\Expr())->not($proposal);
+        $sqb->andWhere($notExpr);
+        $dql = $sqb->getDQL();
+        self::assertStringContainsString('NOT(', $dql);
+        self::assertStringContainsString('u.status =', $dql);
+        self::assertCount(1, $sqb->getParameters());
+        self::assertCount(1, $sqb->getImmutableParameters());
+    }
+
+    /**
+     * Two proposals combined with AND via expr()->andX($proposal1, $proposal2).
+     */
+    public function testTwoProposalsInAndXBothExpanded(): void
+    {
+        $sqb = $this->createSqb();
+        $sqb->select('u')->from(\stdClass::class, 'u');
+        $p1 = $sqb->createEmptyProposal('p1');
+        $p1->andWhere('u.a = 1');
+        $p2 = $sqb->createEmptyProposal('p2');
+        $p2->andWhere('u.b = 2');
+        $sqb->andWhere($sqb->expr()->andX($p1, $p2));
+        $dql = $sqb->getDQL();
+        self::assertStringContainsString('u.a = 1', $dql);
+        self::assertStringContainsString('u.b = 2', $dql);
+        self::assertStringContainsString('AND', $dql);
+    }
+
+    /**
+     * Proposal nested inside Expr\Comparison (e.g. eq right-hand side) is expanded.
+     */
+    public function testProposalInsideExprComparisonIsExpanded(): void
+    {
+        $sqb = $this->createSqb();
+        $sqb->select('u')->from(\stdClass::class, 'u');
+        $proposal = $sqb->createEmptyProposal('p');
+        $ph = $proposal->withUniqueImmutableParameter(':val', 42);
+        $proposal->andWhere('u.id = ' . $ph);
+        $eqExpr = (new \Doctrine\ORM\Query\Expr())->eq('1', $proposal);
+        $sqb->andWhere($eqExpr);
+        $dql = $sqb->getDQL();
+        self::assertStringContainsString('u.id =', $dql);
+        self::assertCount(1, $sqb->getParameters());
+    }
+
+    /**
+     * andHaving() with a proposal expands the proposal (having uses same expansion as where).
+     */
+    public function testProposalInAndHavingIsExpanded(): void
+    {
+        $sqb = $this->createSqb();
+        $sqb->select('u')->from(\stdClass::class, 'u')->addGroupBy('u.id');
+        $proposal = $sqb->createEmptyProposal('p');
+        $proposal->andHaving('COUNT(u.id) > 0');
+        $sqb->andHaving($proposal);
+        $dql = $sqb->getDQL();
+        self::assertStringContainsString('HAVING', $dql);
+        self::assertStringContainsString('COUNT(u.id) > 0', $dql);
+    }
+
+    /**
+     * orWhere() with a proposal expands the proposal.
+     */
+    public function testProposalInOrWhereIsExpanded(): void
+    {
+        $sqb = $this->createSqb();
+        $sqb->select('u')->from(\stdClass::class, 'u');
+        $sqb->andWhere('u.x = 1');
+        $proposal = $sqb->createEmptyProposal('p');
+        $proposal->andWhere('u.y = 2');
+        $sqb->orWhere($proposal);
+        $dql = $sqb->getDQL();
+        self::assertStringContainsString('u.x = 1', $dql);
+        self::assertStringContainsString('u.y = 2', $dql);
+        self::assertStringContainsString('OR', $dql);
     }
 }
